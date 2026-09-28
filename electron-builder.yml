@@ -1,0 +1,59 @@
+# Packaging (plan Task 6.5).
+#
+# Windows only, because that is the machine this app is built for and the only
+# platform its sandbox notes in spec section 17 have been checked on.
+#
+# What ships is the three bundles `electron-vite build` writes into `out/` plus
+# `instructions/run-job.md`, which the job materializer reads for every job
+# (spec section 5.4). The template goes in as an **extra resource** rather than
+# into the asar: `DEFAULT_INSTRUCTION_TEMPLATE_PATH` resolves relative to the
+# compiled main process, which stops being the repository once packaged, so
+# `src/main/index.ts` passes `instructionTemplatePath` explicitly and points it
+# at `process.resourcesPath` (plan Task 6.5, item 2).
+#
+# `workspace/` is not shipped at all. A packaged app keeps it under
+# `app.getPath('userData')` and a `pnpm dev` run keeps it in the repository;
+# `resolveWorkspaceRoot` in `src/main/workspace.ts` is the one place that
+# decides, and the `STUDIO_WORKSPACE` override wins over both.
+#
+# Nothing under `tests/` is packaged, so the fake Codex of plan Task 3.3 cannot
+# reach a user's machine; it is reachable in an end-to-end run only through
+# `STUDIO_FAKE_CODEX_SCRIPT` with `NODE_ENV=test`.
+appId: com.nguyenhong.reference-image-studio
+productName: Reference Image Studio
+copyright: Khanh Nguyen
+
+directories:
+  output: dist
+  buildResources: build
+
+# Only the built bundles and the manifest that names the entry point. The
+# runtime dependencies of `package.json` are collected by electron-builder on
+# top of this list.
+files:
+  - out/**/*
+  - package.json
+
+extraResources:
+  - from: instructions
+    to: instructions
+    filter:
+      - '**/*.md'
+
+# Portable rather than an installer: this is a local, single-user tool and
+# there is nothing to register with the system.
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: ${productName} ${version}.${ext}
+
+portable:
+  # A fixed directory, so a run started from the portable exe reuses the same
+  # unpacked copy instead of leaving one per launch in TEMP.
+  unpackDirName: reference-image-studio
+
+# The app talks to nothing over the network and publishes nothing.
+publish: null
+npmRebuild: false

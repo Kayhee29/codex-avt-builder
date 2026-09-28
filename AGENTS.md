@@ -65,6 +65,8 @@ Directories appear as the plan's tasks create them; several are still empty.
 | `pnpm test`                         | vitest, unit and integration                                   |
 | `pnpm test:e2e`                     | build, then Playwright against the built Electron app          |
 | `pnpm export-schemas`               | regenerate `schemas/*.json` from `src/shared/schemas.ts` (zod) |
+| `pnpm package`                      | build, then a portable Windows exe in `dist/`                  |
+| `pnpm package:dir`                  | the same, unpacked into `dist/win-unpacked/` (faster)          |
 
 Before any commit: `pnpm typecheck`, `pnpm lint` and `pnpm test` must pass.
 

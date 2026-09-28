@@ -1,2 +1,5 @@
 allowBuilds:
+  # electron-builder pulls this in for the Squirrel.Windows target, which this
+  # project does not use: `electron-builder.yml` builds a portable exe.
+  electron-winstaller: false
   esbuild: true

@@ -30,7 +30,7 @@ import {
   registerIpcHandlers,
   type IpcServices
 } from './ipc.ts'
-import { JobMaterializer } from './job-materializer.ts'
+import { JobMaterializer, resolveInstructionTemplatePath } from './job-materializer.ts'
 import { JobService } from './jobs.ts'
 import { Library } from './library.ts'
 import { recoverInterruptedJobs } from './recovery.ts'
@@ -131,7 +131,16 @@ async function createServices(): Promise<IpcServices & { readonly jobs: JobServi
   )
   const jobs = new JobService({
     workspace: layout,
-    materializer: new JobMaterializer({ workspace: layout, registry }),
+    materializer: new JobMaterializer({
+      workspace: layout,
+      registry,
+      // Plan Task 6.5: the default path is derived from where the compiled
+      // main process sits, which stops being the repository once packaged.
+      instructionTemplatePath: resolveInstructionTemplatePath({
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath
+      })
+    }),
     preflight,
     registry,
     renderThumbnail: nativeImageThumbnail,

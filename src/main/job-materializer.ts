@@ -73,6 +73,35 @@ export const DEFAULT_INSTRUCTION_TEMPLATE_PATH = fileURLToPath(
   new URL('../../instructions/run-job.md', import.meta.url)
 )
 
+/** The directory `instructions/run-job.md` ships in, under the app resources. */
+export const INSTRUCTIONS_DIRECTORY = 'instructions'
+
+/** The template's file name, the same in the repository and in a package. */
+export const RUN_JOB_TEMPLATE_FILE_NAME = 'run-job.md'
+
+/** What {@link resolveInstructionTemplatePath} needs from Electron. */
+export interface InstructionTemplateHost {
+  /** `app.isPackaged`: false under `pnpm dev`, true in a built app. */
+  readonly isPackaged: boolean
+  /** `process.resourcesPath`, where `extraResources` are unpacked. */
+  readonly resourcesPath: string
+}
+
+/**
+ * Where `run-job.md` really is (plan Task 6.5, item 2).
+ *
+ * {@link DEFAULT_INSTRUCTION_TEMPLATE_PATH} is resolved from the compiled main
+ * process, which sits two directories below the repository root — true while
+ * developing and false the moment the app is packaged, where the same two steps
+ * land inside `app.asar`. `electron-builder.yml` ships the template as an extra
+ * resource instead, so a packaged app is told the path rather than deriving it.
+ */
+export function resolveInstructionTemplatePath(host: InstructionTemplateHost): string {
+  return host.isPackaged
+    ? join(host.resourcesPath, INSTRUCTIONS_DIRECTORY, RUN_JOB_TEMPLATE_FILE_NAME)
+    : DEFAULT_INSTRUCTION_TEMPLATE_PATH
+}
+
 /**
  * Why a job was refused. Both are codes spec section 7.4 lets the main process
  * set.

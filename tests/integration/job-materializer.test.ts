@@ -9,7 +9,8 @@ import {
   DEFAULT_INSTRUCTION_TEMPLATE_PATH,
   JOB_ID_PLACEHOLDER,
   JobMaterializer,
-  MaterializeError
+  MaterializeError,
+  resolveInstructionTemplatePath
 } from '../../src/main/job-materializer.ts'
 import { ReferenceRegistry } from '../../src/main/reference-registry.ts'
 import { CODEX_MIN_VERSION } from '../../src/shared/codex-version.ts'
@@ -281,6 +282,20 @@ describe('materialize', () => {
 
     expect(await readFile(join(job.directory, 'run-instructions.md'), 'utf8')).toBe(
       `Job ${job.jobId}.\n`
+    )
+  })
+
+  // Plan Task 6.5, item 2. The default path is derived from where the compiled
+  // main process sits, which is the repository while developing and somewhere
+  // inside `app.asar` once packaged; a packaged app is told the path instead.
+  it('resolves the template next to the app resources when packaged', () => {
+    const resourcesPath = join('C:', 'Program Files', 'Studio', 'resources')
+
+    expect(resolveInstructionTemplatePath({ isPackaged: true, resourcesPath })).toBe(
+      join(resourcesPath, 'instructions', 'run-job.md')
+    )
+    expect(resolveInstructionTemplatePath({ isPackaged: false, resourcesPath })).toBe(
+      DEFAULT_INSTRUCTION_TEMPLATE_PATH
     )
   })
 

@@ -461,6 +461,14 @@ export interface SessionLike {
  * injects its preamble inline, which `script-src 'self'` would block — so the
  * header is not set there, and the guarantee it is part of is a property of the
  * shipped app. Returns whether it was applied.
+ *
+ * Plan Task 6.5 asks whether the header really arrives, since a packaged
+ * renderer is loaded with `loadFile` and Chromium is not obliged to hand
+ * headers to a `file://` response. Measured on Electron 44.4.5, Windows 10
+ * 19045, against the packaged build: it does. The header is on `index.html`
+ * and on both assets, and an inline `<script>` appended to the document is
+ * refused with a `script-src-elem` violation. No custom `app://` protocol and
+ * no meta tag are needed.
  */
 export function applyContentSecurityPolicy(
   session: SessionLike,
