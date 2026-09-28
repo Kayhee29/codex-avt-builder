@@ -51,6 +51,14 @@ let events: ProgressEvent[]
 let revealed: string[]
 let clock: number
 let stylePath: string
+/**
+ * A hook a test installs to act on a progress event as it is emitted.
+ *
+ * Cancelling from `queued` or `verifying` has to happen while the job is in
+ * that state, and the sink is called synchronously from `ProgressEmitter.emit`,
+ * so this is the only place a test can stand.
+ */
+let onEvent: ((event: ProgressEvent) => void) | null
 
 /** A monotonic clock, so startedAt and completedAt are distinguishable. */
 function now(): Date {
@@ -66,6 +74,7 @@ beforeEach(async () => {
   runner = new CodexRunner()
   events = []
   revealed = []
+  onEvent = null
   clock = 0
   stylePath = join(workspace.base, 'master-style.png')
 
@@ -110,11 +119,24 @@ function service(preflight: PreflightRunner): JobService {
     runner,
     registry,
     now,
-    onProgress: (event) => events.push(event),
+    onProgress: (event) => {
+      events.push(event)
+      onEvent?.(event)
+    },
     reveal: (path) => {
       revealed.push(path)
     }
   })
+}
+
+/** A promise a test resolves by hand, for holding preflight open. */
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let settle: (value: T) => void = () => {}
+  const promise = new Promise<T>((resolvePromise) => {
+    settle = resolvePromise
+  })
+
+  return { promise, resolve: (value) => settle(value) }
 }
 
 async function builderInput(
@@ -333,10 +355,115 @@ describe('JobService.cancel', () => {
     expect(await readResult(started.jobId)).toEqual(result)
   })
 
+  it('stops a job that is still queued, before preflight or Codex ever run', async () => {
+    let preflights = 0
+    const jobs = service({
+      run: async (): Promise<PreflightOutcome> => {
+        preflights += 1
+
+        return {
+          result: { ok: true, version: '0.158.0', executable: process.execPath },
+          launcher: fakeCodexLauncher({ scenario: 'success' })
+        }
+      }
+    })
+    const { state, promptSha256 } = await builderInput()
+    let cancelled: boolean | null = null
+
+    // Spec section 5.5 allows Cancel from `queued`, and `queued` lasts only
+    // until the state machine starts, so the request is made from the sink.
+    onEvent = (event) => {
+      if (event.state === 'queued') {
+        cancelled = jobs.cancel(event.jobId)
+      }
+    }
+
+    const started = await jobs.generate(state, promptSha256)
+    const result = await started.completed
+
+    expect(cancelled).toBe(true)
+    expect(preflights).toBe(0)
+    expect(states()).toEqual(['queued', 'cancelled'])
+    expect(result.status).toBe('cancelled')
+    expect(result.error?.code).toBe('CANCELLED')
+    // Spec section 7.2: Codex never ran, so nothing about it is claimed.
+    expect(result.executor).toEqual({
+      codexVersion: null,
+      executable: null,
+      exitCode: null,
+      signal: null
+    })
+    expect(result.outputs).toEqual([])
+    expect(await readResult(started.jobId)).toEqual(result)
+    // Nothing was spawned, so the runner never opened the job's log.
+    await expect(stat(join(started.directory, EVENTS_FILE_NAME))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+
+  it('stops a job while preflight is still running, without spawning Codex', async () => {
+    const gate = deferred<PreflightOutcome>()
+    let started = false
+    const jobs = service({
+      run: async (): Promise<PreflightOutcome> => {
+        started = true
+
+        return gate.promise
+      }
+    })
+    const { state, promptSha256 } = await builderInput()
+    const job = await jobs.generate(state, promptSha256)
+
+    await waitFor(() => started)
+    expect(jobs.cancel(job.jobId)).toBe(true)
+
+    // Preflight answers after the cancel, the way a slow `codex --version`
+    // would; the user's request still wins (plan decision Q20).
+    gate.resolve({
+      result: { ok: true, version: '0.158.0', executable: process.execPath },
+      launcher: fakeCodexLauncher({ scenario: 'success' })
+    })
+
+    const result = await job.completed
+
+    expect(states()).toEqual(['queued', 'preflight', 'cancelled'])
+    expect(result.status).toBe('cancelled')
+    expect(result.error?.code).toBe('CANCELLED')
+    expect(result.executor.codexVersion).toBeNull()
+    expect(await readResult(job.jobId)).toEqual(result)
+    expect(runner.running).toEqual([])
+    await expect(stat(join(job.directory, EVENTS_FILE_NAME))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+
+  it('ignores a cancel once the run is verifying, because it has finished', async () => {
+    const jobs = service(passingPreflight('success'))
+    const { state, promptSha256 } = await builderInput()
+    let duringVerifying: boolean | null = null
+
+    onEvent = (event) => {
+      if (event.state === 'verifying' && duringVerifying === null) {
+        duringVerifying = jobs.cancel(event.jobId)
+      }
+    }
+
+    const result = await (await jobs.generate(state, promptSha256)).completed
+
+    expect(duringVerifying).toBe(false)
+    expect(states()).toEqual(['queued', 'preflight', 'running', 'verifying', 'succeeded'])
+    expect(result.status).toBe('succeeded')
+  })
+
   it('answers false for a job that is not running', async () => {
     const jobs = service(passingPreflight('success'))
+    const { state, promptSha256 } = await builderInput()
+    const started = await jobs.generate(state, promptSha256)
+
+    await started.completed
 
     expect(jobs.cancel('2026-09-28-nobody-001')).toBe(false)
+    expect(jobs.cancel(started.jobId)).toBe(false)
   })
 
   it('refuses a job ID that does not match spec section 6.1', () => {

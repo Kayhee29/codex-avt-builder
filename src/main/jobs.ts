@@ -3,10 +3,16 @@
  *
  * ```text
  * queued → preflight → running → verifying → succeeded
- *              │          │          │
- *              └──────────┴──────────┴──────→ failed
- *                         └─────────────────→ cancelled
+ *   │          │          │          │
+ *   │          └──────────┴──────────┴──────→ failed
+ *   └──────────┴──────────┴─────────────────→ cancelled
  * ```
+ *
+ * Cancel is allowed in `queued`, `preflight` and `running` (spec section 5.5,
+ * plan decision Q20): preflight alone can take twenty seconds, so a Cancel
+ * button that only works once Codex is spawned is not good enough. A cancel
+ * that arrives before the spawn stops the job where it stands and no Codex ever
+ * runs. In `verifying` it is ignored, because the run has already finished.
  *
  * Every one of those states is set here, by the main process, and never
  * inferred from something Codex said: Codex knows nothing about the app's
@@ -65,6 +71,12 @@ import { jobDir, workspaceLayout, type WorkspaceLayout } from './workspace.ts'
 
 /** The `type` of the line main writes when preflight refused to start a run. */
 export const STUDIO_PREFLIGHT_EVENT_TYPE = 'studio.preflight'
+
+/** What `result.json` says when the user pressed Cancel (spec section 7.4). */
+export const CANCELLED_MESSAGE = 'You cancelled this job.'
+
+/** The states a cancel is accepted in (spec section 5.5, plan decision Q20). */
+const CANCELLABLE_STATES: readonly RunState[] = ['queued', 'preflight', 'running']
 
 /**
  * Thrown by a call the renderer made, carrying a code from the IPC vocabulary
@@ -142,6 +154,14 @@ export class JobService {
   readonly #renderThumbnail: ((absPath: string) => Promise<string | null>) | undefined
   /** Jobs this session is running, with the state they are in right now. */
   readonly #active = new Map<string, ProgressEmitter>()
+  /**
+   * Jobs the user cancelled before Codex was spawned (plan decision Q20).
+   *
+   * Once the process exists the runner owns the cancel; before it does there is
+   * nothing to signal, so the request is recorded here and the state machine
+   * stops at its next checkpoint.
+   */
+  readonly #cancelRequested = new Set<string>()
 
   constructor(options: JobServiceOptions) {
     this.#layout =
@@ -196,21 +216,43 @@ export class JobService {
     const startedAt = this.#now().toISOString()
     const completed = this.#run(materialized, progress, startedAt).finally(() => {
       this.#active.delete(materialized.jobId)
+      this.#cancelRequested.delete(materialized.jobId)
     })
 
     return { jobId: materialized.jobId, directory: materialized.directory, completed }
   }
 
   /**
-   * Ends a running job and everything it started (plan decision Q12).
+   * Ends a job and everything it started, in any state spec section 5.5 allows
+   * Cancel from: `queued`, `preflight` or `running`.
    *
-   * The run itself writes the `cancelled` `result.json`, so this returns as
-   * soon as the signal is on its way.
+   * With Codex running this kills the process tree (plan decision Q12). Before
+   * the spawn there is nothing to signal, so the request is recorded and the
+   * run stops at its next checkpoint without ever starting Codex
+   * (plan decision Q20) — preflight alone can take twenty seconds, and a job
+   * waiting on it must be cancellable.
+   *
+   * Either way the run itself writes the `cancelled` `result.json`, so this
+   * returns as soon as the request is in. `false` means there was nothing to
+   * cancel: no such run, or one that has already reached `verifying`, where the
+   * work is done and the answer is whatever it produced.
    */
   cancel(jobId: string): boolean {
     this.#assertJobId(jobId)
 
-    return this.#runner.cancel(jobId)
+    if (this.#runner.cancel(jobId)) {
+      return true
+    }
+
+    const progress = this.#active.get(jobId)
+
+    if (progress === undefined || !CANCELLABLE_STATES.includes(progress.state)) {
+      return false
+    }
+
+    this.#cancelRequested.add(jobId)
+
+    return true
   }
 
   /** Recent jobs (spec section 4.6), newest first. */
@@ -294,9 +336,22 @@ export class JobService {
     const { jobId, directory, packet, inputPaths } = materialized
 
     try {
+      // Plan decision Q20: cancelled while `queued`, which is where a job sits
+      // between the directory being complete and this function running.
+      if (this.#cancelRequested.has(jobId)) {
+        return await this.#finishCancelled(directory, progress, jobId, startedAt)
+      }
+
       progress.emit('preflight')
 
       const outcome = await this.#preflight.run()
+
+      // Plan decision Q20: cancelled while preflight ran. The user's request
+      // wins over whatever preflight went on to conclude — they stopped the
+      // job, and it never got as far as Codex.
+      if (this.#cancelRequested.has(jobId)) {
+        return await this.#finishCancelled(directory, progress, jobId, startedAt)
+      }
 
       if (!outcome.result.ok || outcome.launcher === null) {
         await this.#logPreflightFailure(directory, outcome)
@@ -338,7 +393,10 @@ export class JobService {
         signal: run.signal
       }
 
-      if (run.cancelled) {
+      // The second half covers the sliver between `progress.emit('running')`
+      // and the runner registering the child: a cancel that lands there finds
+      // no process to kill and is recorded instead.
+      if (run.cancelled || this.#cancelRequested.has(jobId)) {
         return await this.#finish(
           directory,
           progress,
@@ -348,7 +406,7 @@ export class JobService {
             startedAt,
             completedAt: this.#now().toISOString(),
             executor,
-            error: { code: 'CANCELLED', message: 'You cancelled this job.' }
+            error: { code: 'CANCELLED', message: CANCELLED_MESSAGE }
           })
         )
       }
@@ -414,6 +472,33 @@ export class JobService {
         })
       )
     }
+  }
+
+  /**
+   * Ends a job the user cancelled before Codex was spawned (plan decision Q20).
+   *
+   * Spec section 7.2: every executor field is null, because no Codex ran — the
+   * same shape a preflight failure writes, and the honest record of a job that
+   * never started.
+   */
+  async #finishCancelled(
+    directory: string,
+    progress: ProgressEmitter,
+    jobId: string,
+    startedAt: string
+  ): Promise<Result> {
+    return this.#finish(
+      directory,
+      progress,
+      buildResult({
+        jobId,
+        status: 'cancelled',
+        startedAt,
+        completedAt: this.#now().toISOString(),
+        executor: nullExecutor(),
+        error: { code: 'CANCELLED', message: CANCELLED_MESSAGE }
+      })
+    )
   }
 
   /**
