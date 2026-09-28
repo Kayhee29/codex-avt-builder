@@ -57,6 +57,8 @@ Spec để ngỏ một số điểm. Plan chốt như sau và các quyết đị
 | Q17 | Chữ ký hàm ở Task 1.5 xung đột với Q3 | `previewPresetApply` và `newDraftFromAnchor` không thể tự đặt ảnh style hoặc identity vào slot, vì `BuilderReference` là handle chỉ main process mới đúc được. Cả hai nhận thêm một options tùy chọn mang handle mà caller đã resolve (`styleReference`, `identityReference`). Không có handle thì slot để trống, và preview nói đúng như vậy. |
 | Q18 | `library.listPresets` và `listAnchors` (mục 8) | Trả `PresetEntry { preset, styleReference }` và `AnchorEntry { anchor, identityReference }` thay vì object trần, vì renderer cần handle cho ảnh đã lưu mới áp preset hoặc load anchor được. |
 | Q19 | `BuilderReference` thiếu thumbnail | Mục 4.2 yêu cầu thumbnail mỗi slot và Task 2.3 trả thumbnail, nhưng schema hiện chưa có field. Task 2.3 thêm field này vào `BuilderReferenceSchema`, chạy `pnpm export-schemas` và commit `schemas/draft.schema.json` đã sinh lại. |
+| Q20 | Cancel trước khi spawn | Spec 5.5 nay cho phép cancel từ `queued` và `preflight`, không chỉ `running`. `JobService.cancel` hiện trả `false` ở hai trạng thái đó và job vẫn chạy tiếp. Task 4.2 phải sửa: cancel ở `queued` hoặc `preflight` dừng luôn, ghi `result.json` với `cancelled` / `CANCELLED`, và không spawn Codex. Lý do: preflight có thể mất tới 20 giây. |
+| Q21 | `CODEX_SANDBOX_UNAVAILABLE` chưa có mẫu thật | Bốn regex trên stderr trong `result-verifier.ts` là suy từ prose mục 5.3, chưa từng thấy output thật vì máy đang cài 0.27.0. Task 6.3 phải xem lại sau khi nâng cấp Codex; nếu lỗi sandbox thật hiện ra dưới dạng `GENERATION_FAILED` thì bổ sung đúng câu chữ quan sát được. |
 
 ## 3. Cấu trúc thư mục mục tiêu
 

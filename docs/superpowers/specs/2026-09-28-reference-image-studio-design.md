@@ -313,10 +313,12 @@ Codex không biết các phase của app, nên **trạng thái run do main proce
 
 ```text
 queued → preflight → running → verifying → succeeded
-             │          │          │
-             └──────────┴──────────┴──────→ failed
-                        └─────────────────→ cancelled
+  │          │          │          │
+  │          └──────────┴──────────┴──────→ failed
+  └──────────┴──────────┴─────────────────→ cancelled
 ```
+
+Cancel được phép ở `queued`, `preflight` và `running`, đúng theo mục 10. Preflight có thể mất tới 20 giây vì hai lệnh đều có timeout 10 giây, nên khóa nút Cancel cho tới khi `running` là không chấp nhận được. Cancel trong `verifying` bị bỏ qua vì run đã kết thúc.
 
 | Trạng thái | Ai đặt | Khi nào |
 |---|---|---|
@@ -504,6 +506,9 @@ Bổ sung cho mục 5.6, áp dụng trong trạng thái `verifying`:
 - File có trong `outputs/` nhưng không được khai trong `codex-result.json` bị bỏ qua và được ghi vào `warnings`.
 - Kích thước, tỉ lệ hoặc format thực tế khác với `output` yêu cầu trong `job.json` không làm job thất bại; sai lệch được ghi vào `warnings` và UI hiển thị.
 - Exit code khác 0 mà không có `codex-result.json` thì `GENERATION_FAILED`. Exit code 0 vẫn phải qua đủ các bước trên.
+- Exit code 0 mà không có `codex-result.json` thì `INVALID_RESULT`, không phải `GENERATION_FAILED`: process kết thúc sạch nhưng không để lại báo cáo nào để tin.
+- `status` là `succeeded` nhưng `error` khác `null`, hoặc `status` là `failed` nhưng `error` là `null`, đều là `INVALID_RESULT`. Schema cho phép cả hai nhưng chúng tự mâu thuẫn.
+- `count` thực tế khác `output.count` yêu cầu cũng chỉ là `warnings`, cùng lý do với kích thước và format.
 
 ### 7.4 Mã lỗi
 
