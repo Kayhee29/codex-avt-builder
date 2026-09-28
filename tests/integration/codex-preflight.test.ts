@@ -12,6 +12,7 @@ import {
 import type { CodexLauncher } from '../../src/main/codex-resolver.ts'
 import { CODEX_MIN_VERSION } from '../../src/shared/codex-version.ts'
 import { PreflightResultSchema } from '../../src/shared/ipc-contract.ts'
+import { fakeCodexEnv, fakeCodexLauncher } from '../helpers/fake-codex.ts'
 import { createTempDir } from '../helpers/tmp-workspace.ts'
 
 let temp: { path: string; remove(): Promise<void> }
@@ -218,6 +219,47 @@ describe('runCodexPreflight resolution failures', () => {
     })
 
     expect(outcome.result).toMatchObject({ ok: false, code: 'CODEX_NOT_FOUND' })
+  })
+})
+
+describe('runCodexPreflight against the fake Codex of plan Task 3.3', () => {
+  it('passes with the fake defaults, which claim CODEX_MIN_VERSION and a login', async () => {
+    const outcome = await runCodexPreflight({
+      launcher: fakeCodexLauncher(),
+      env: { ...process.env }
+    })
+
+    expect(outcome.result).toMatchObject({ ok: true, version: CODEX_MIN_VERSION })
+  })
+
+  it('rejects the fake when it claims the 0.27.0 installed on this machine', async () => {
+    const outcome = await runCodexPreflight({
+      launcher: fakeCodexLauncher({ version: '0.27.0' }),
+      env: { ...process.env }
+    })
+
+    expect(outcome.result).toMatchObject({ ok: false, code: 'CODEX_VERSION_UNSUPPORTED' })
+  })
+
+  it('reports CODEX_NOT_AUTHENTICATED when the fake fails login status', async () => {
+    const outcome = await runCodexPreflight({
+      launcher: fakeCodexLauncher({ loginExitCode: 1 }),
+      env: { ...process.env }
+    })
+
+    expect(outcome.result).toMatchObject({ ok: false, code: 'CODEX_NOT_AUTHENTICATED' })
+  })
+
+  it('does not see FAKE_CODEX_* through process.env, because the allowlist drops it', async () => {
+    // A regression guard for plan Task 3.5 and Task 6.1: the child environment
+    // is an allowlist, so a scenario set on the parent process never reaches
+    // the fake. It has to ride on the launcher.
+    const outcome = await runCodexPreflight({
+      launcher: fakeCodexLauncher(),
+      env: { ...process.env, ...fakeCodexEnv({ version: '0.27.0' }) }
+    })
+
+    expect(outcome.result).toMatchObject({ ok: true, version: CODEX_MIN_VERSION })
   })
 })
 

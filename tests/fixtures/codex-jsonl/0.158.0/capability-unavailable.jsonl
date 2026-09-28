@@ -1,0 +1,8 @@
+{"type":"thread.started","thread_id":"thread_synthetic_capability"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_0","type":"reasoning","text":"Checking the available tools"}}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"The image_gen tool is not present in this session, so no image can be generated."}}
+{"type":"item.started","item":{"id":"item_1","type":"file_change","changes":[{"path":"codex-result.json","kind":"add"}],"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"file_change","changes":[{"path":"codex-result.json","kind":"add"}],"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"Tool image_gen không khả dụng trong phiên này. Đã ghi codex-result.json với IMAGE_CAPABILITY_UNAVAILABLE và dừng."}}
+{"type":"turn.completed","usage":{"input_tokens":1890,"cached_input_tokens":1280,"output_tokens":96}}

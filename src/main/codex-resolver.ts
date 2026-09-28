@@ -38,11 +38,22 @@ export type CodexExecutableSource = 'settings' | 'npm-global' | 'path'
  * `prefixArgs` is always empty in production and holds the fake's script path
  * in tests, so `exec --json …` can be appended the same way in both and a test
  * can assert the exact argv without needing a real `.exe`.
+ *
+ * `env` exists for the same reason. The child's environment is the allowlist
+ * {@link minimalCodexEnv} builds, which deliberately drops everything the
+ * allowlist does not name — including the `FAKE_CODEX_*` variables that script
+ * the fake of plan Task 3.3. Rather than writing test-only variable names into
+ * a production allowlist, the extra variables ride on the injected launcher:
+ * whoever builds a fake launcher supplies them, and the launcher
+ * {@link resolveCodexExecutable} returns never has any. It is merged on top of
+ * the allowlist, so it can also be used to pin `CODEX_HOME` for a test run.
  */
 export interface CodexLauncher {
   readonly command: string
   readonly prefixArgs: readonly string[]
   readonly source: CodexExecutableSource
+  /** Merged on top of {@link minimalCodexEnv}; empty in production. */
+  readonly env?: Readonly<Record<string, string>>
 }
 
 /**

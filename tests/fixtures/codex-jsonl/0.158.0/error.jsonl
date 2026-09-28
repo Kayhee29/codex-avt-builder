@@ -1,0 +1,6 @@
+{"type":"thread.started","thread_id":"thread_synthetic_error"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_0","type":"reasoning","text":"Generating the image"}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"copy generated_images/gen-001.png outputs/001.png","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"copy generated_images/gen-001.png outputs/001.png","aggregated_output":"The system cannot find the file specified.\n","exit_code":1,"status":"completed"}}
+{"type":"error","message":"Image generation failed: the request to /v1/images returned 401 (authorization: Bearer sk-NOT-A-REAL-KEY-000000) while writing C:\\Users\\example\\AppData\\Roaming\\codex\\generated_images\\gen-001.png"}

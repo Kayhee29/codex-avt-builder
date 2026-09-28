@@ -278,7 +278,9 @@ export async function runCodexCommand(
         shell: false,
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: options.env
+        // The allowlist first, then whatever the injected launcher adds. In
+        // production `launcher.env` is absent, so this is the allowlist alone.
+        env: { ...options.env, ...launcher.env }
       })
     } catch (error) {
       return finish(null, null, error as NodeJS.ErrnoException)
