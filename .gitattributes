@@ -1,0 +1,8 @@
+# Keep LF in the working tree on every platform so prettier's `endOfLine: lf`
+# and .editorconfig agree with what is checked out on Windows.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

@@ -1,0 +1,10 @@
+node_modules
+out
+dist
+.vite
+coverage
+pnpm-lock.yaml
+workspace
+
+# Spec and plan are authored documents; prettier must not reflow them.
+docs
