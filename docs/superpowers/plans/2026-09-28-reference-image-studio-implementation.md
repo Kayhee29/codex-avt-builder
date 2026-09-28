@@ -51,6 +51,8 @@ Spec để ngỏ một số điểm. Plan chốt như sau và các quyết đị
 | Q11 | Đo ảnh | Magic bytes PNG, JPEG, WebP tự viết trong `src/main/image-inspect.ts` (vài chục dòng). Kích thước dùng package `image-size`. Không dùng `file-type` vì chỉ cần ba định dạng. |
 | Q12 | Kill cây process (mục 5.3) | Windows: spawn `taskkill /T /F /PID <pid>`. macOS và Linux: spawn Codex với `detached: true` và gửi `SIGTERM` tới `-pid`. |
 | Q13 | Job bị gián đoạn (mục 7.4, 12) | Khi app khởi động, main quét `workspace/jobs/*`; job có `job.json` mà không có `result.json` được ghi `result.json` với `failed` / `INTERRUPTED`. |
+| Q14 | Nhãn Image A/B khi có slot trống (mục 4.3) | Nhãn gán **tuần tự cho các reference đang có**, sau khi sắp theo thứ tự role. Thiếu `style` thì `identity` thành `Image A`. Lý do: nhãn trong `prompt.md` phải khớp thứ tự đính kèm `-i` ở mục 5.3; nếu nhãn cố định theo role thì `Image B` sẽ là ảnh đính kèm thứ nhất và model hiểu sai. `job.json` luôn ghi `label` tường minh nên runtime không phải suy đoán. |
+| Q15 | Content Security Policy | Không đặt CSP bằng thẻ meta trong `index.html` vì sẽ chặn preamble React Fast Refresh khi `pnpm dev`. Thay bằng `session.defaultSession.webRequest.onHeadersReceived` chỉ áp dụng khi đóng gói, làm trong Task 4.2. |
 
 ## 3. Cấu trúc thư mục mục tiêu
 
@@ -172,7 +174,7 @@ e2e/                       Playwright Electron
 **Test trước:**
 
 - Bảy phần theo đúng thứ tự mục 4.3, kiểm bằng vị trí heading.
-- Reference map ghi `Image A → style → master-style.png` theo thứ tự role, bỏ qua role trống nhưng không đổi nhãn của role còn lại.
+- Reference map ghi `Image A → style → master-style.png`. Nhãn được gán tuần tự cho các reference **đang có**, sau khi đã sắp theo thứ tự role (Q14). Nếu slot `style` trống thì `identity` là `Image A`. Có một test riêng cho trường hợp này.
 - Conflict policy mặc định có mặt; negative constraints từ preset và người dùng gộp, bỏ trùng.
 - Snapshot cho một state đầy đủ để phát hiện thay đổi vô ý.
 - Cùng input cho cùng output và cùng sha256 (deterministic).
@@ -363,6 +365,8 @@ e2e/                       Playwright Electron
 **Hành vi:** builder store giữ `BuilderState`, `status: clean | dirty | saving | ready | invalid` tính từ zod `safeParse` và cờ dirty; autosave debounce 800 ms gọi `draft.save`; jobs store giữ danh sách và `progressByJobId`. Layout ba cột: Character direction, Reference slots, Prompt preview; thanh dưới: preset, anchor, recent jobs, Generate.
 
 **Test trước (vitest + jsdom):** nhập subject name làm `dirty`; state hợp lệ cho `ready`; xóa name cho `invalid`; autosave gọi bridge đúng một lần sau debounce.
+
+**Lưu ý:** `tsconfig.node.json` hiện chỉ include `tests/**/*.ts`. Task này phải thêm project hoặc include cho `tests/unit/renderer/*.test.tsx`, nếu không typecheck bỏ sót test của renderer.
 
 **Commit:** `feat(renderer): builder and jobs stores with Vietnamese UI strings`
 
