@@ -43,13 +43,27 @@ const NON_SLUG_CHARACTERS = /[^a-z0-9]+/g
 const REPEATED_HYPHENS = /-{2,}/g
 const EDGE_HYPHENS = /^-+|-+$/g
 
+export interface SlugifyOptions {
+  /** Used when nothing survives the fold. Defaults to {@link FALLBACK_JOB_SLUG}. */
+  readonly fallback?: string
+  /** Defaults to {@link MAX_JOB_SLUG_LENGTH}. */
+  readonly maxLength?: number
+}
+
 /**
  * Turns a subject name into the slug part of a job ID (spec section 6.1):
  * strip Vietnamese accents, fold to lowercase ASCII, replace anything that is
  * not a letter or a digit with a hyphen, collapse runs of hyphens, trim the
  * ends, cut to 24 characters, and fall back to `job` when nothing is left.
+ *
+ * Preset and anchor identifiers are the same kind of slug over a longer budget
+ * (`LIBRARY_ID_REGEX` in `./schemas.ts`), so `src/main/library.ts` calls this
+ * with its own fallback and length rather than repeating the accent folding.
  */
-export function slugifySubject(name: string): string {
+export function slugifySubject(name: string, options: SlugifyOptions = {}): string {
+  const fallback = options.fallback ?? FALLBACK_JOB_SLUG
+  const maxLength = options.maxLength ?? MAX_JOB_SLUG_LENGTH
+
   const ascii = name
     .normalize('NFD')
     .replace(COMBINING_MARKS, '')
@@ -60,10 +74,10 @@ export function slugifySubject(name: string): string {
     .replace(NON_SLUG_CHARACTERS, '-')
     .replace(REPEATED_HYPHENS, '-')
     .replace(EDGE_HYPHENS, '')
-    .slice(0, MAX_JOB_SLUG_LENGTH)
+    .slice(0, maxLength)
     .replace(EDGE_HYPHENS, '')
 
-  return slug === '' ? FALLBACK_JOB_SLUG : slug
+  return slug === '' ? fallback : slug
 }
 
 /** `YYYY-MM-DD` in machine local time, as spec section 6.1 requires. */
