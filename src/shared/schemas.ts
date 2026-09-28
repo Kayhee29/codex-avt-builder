@@ -390,6 +390,8 @@ export const SettingsSchema = z.strictObject({
 // Inferred types
 // ---------------------------------------------------------------------------
 
+export type ImageMimeType = z.infer<typeof ImageMimeTypeSchema>
+export type ImageFormat = z.infer<typeof ImageFormatSchema>
 export type Subject = z.infer<typeof SubjectSchema>
 export type OutputRequest = z.infer<typeof OutputRequestSchema>
 export type SourceRefs = z.infer<typeof SourceRefsSchema>

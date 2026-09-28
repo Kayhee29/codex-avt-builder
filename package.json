@@ -25,6 +25,7 @@
     "export-schemas": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-schemas.ts"
   },
   "dependencies": {
+    "image-size": "2.0.4",
     "zod": "4.6.5"
   },
   "devDependencies": {
