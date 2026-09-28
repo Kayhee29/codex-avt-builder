@@ -76,6 +76,10 @@
                 "type": "string",
                 "minLength": 1
               },
+              "thumbnail": {
+                "type": "string",
+                "pattern": "^data:image\\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$"
+              },
               "mimeType": {
                 "type": "string",
                 "enum": [

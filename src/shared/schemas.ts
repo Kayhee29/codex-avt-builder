@@ -60,6 +60,13 @@ export const ANCHOR_IDENTITY_PATH_REGEX = /^identity\.(png|jpg|webp)$/
 /** The optional approved output stored with an anchor version (spec section 4.5). */
 export const ANCHOR_APPROVED_PATH_REGEX = /^approved\.(png|jpg|webp)$/
 
+/**
+ * The thumbnail every reference slot shows (spec section 4.2, plan decision
+ * Q19). A base64 `data:` URL the main process renders, small enough to sit in
+ * the builder state and in the autosaved draft.
+ */
+export const THUMBNAIL_DATA_URL_REGEX = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/
+
 export const JobIdSchema = z
   .string()
   .regex(JOB_ID_REGEX, 'Job ID does not match the pattern in spec section 6.1')
@@ -340,12 +347,24 @@ export const AnchorSchema = z.strictObject({
  * `referenceId` and never an absolute path; the main process owns the registry
  * that maps the id back to a path (spec section 11, plan decision Q3).
  * `displayPath` is a shortened string for display only and is never sent back.
+ *
+ * `thumbnail` is the preview spec section 4.2 requires on every slot, added by
+ * plan decision Q19. Main renders it and, like `displayPath`, the renderer
+ * never hands it back; it is absent when main could not render one, which is
+ * the case for a reference whose file has gone `missing`. The field is named
+ * `thumbnail` rather than `thumbnailDataUrl` on purpose: the IPC audit in
+ * `tests/unit/ipc-contract.test.ts` refuses any request field whose name
+ * contains a path-shaped word, and `url` is one of them.
  */
 export const BuilderReferenceSchema = z.strictObject({
   referenceId: z.uuid(),
   role: ReferenceRoleSchema,
   originalName: z.string().min(1),
   displayPath: z.string().min(1),
+  thumbnail: z
+    .string()
+    .regex(THUMBNAIL_DATA_URL_REGEX, 'Expected a base64 image data URL')
+    .optional(),
   mimeType: ImageMimeTypeSchema,
   sizeBytes: z.int().nonnegative(),
   width: z.int().positive(),

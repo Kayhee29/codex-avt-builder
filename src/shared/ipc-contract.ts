@@ -98,11 +98,17 @@ export type IpcResult<T> =
  * A reference as the renderer sends it back.
  *
  * `displayPath` is dropped: main produced it for display and the renderer must
- * never hand a path back (spec section 11). The rest is the handle's own
- * metadata; main treats it as untrusted display state and re-measures every
- * reference from its registry when it materializes a job (spec section 5.2).
+ * never hand a path back (spec section 11). `thumbnail` is dropped for the same
+ * reason, minus the security argument: main rendered it, main's reference
+ * registry still holds it, and sending several base64 images back on every
+ * autosave would be waste. The rest is the handle's own metadata; main treats
+ * it as untrusted display state and re-measures every reference from its
+ * registry when it materializes a job (spec section 5.2).
  */
-export const BuilderReferenceInputSchema = BuilderReferenceSchema.omit({ displayPath: true })
+export const BuilderReferenceInputSchema = BuilderReferenceSchema.omit({
+  displayPath: true,
+  thumbnail: true
+})
 
 export type BuilderReferenceInput = z.infer<typeof BuilderReferenceInputSchema>
 
