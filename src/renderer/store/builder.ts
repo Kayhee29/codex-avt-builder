@@ -20,6 +20,13 @@
 import { create, type StoreApi, type UseBoundStore } from 'zustand'
 
 import type { BuilderReferenceInput, BuilderStateInput, IpcErrorCode } from '@shared/ipc-contract'
+import {
+  buildPrompt,
+  orderReferences,
+  sha256Hex,
+  type BuiltPrompt,
+  type PromptReference
+} from '@shared/prompt-builder'
 import type { ReferenceRole } from '@shared/reference-roles'
 import {
   BuilderStateSchema,
@@ -65,6 +72,32 @@ export interface BuilderStore {
   readonly loadErrorCode: IpcErrorCode | null
   readonly saveErrorCode: IpcErrorCode | null
   readonly pickErrorCode: IpcErrorCode | null
+
+  /**
+   * The prompt for the current state, rebuilt on every edit by the shared
+   * `buildPrompt` (spec section 4.3). The preview is a pure function of the
+   * builder state and never runs Codex (spec section 5.1): nothing in this
+   * module sends an IPC command to produce it.
+   *
+   * `null` only when `buildPrompt` refused the state; see `promptFailed`.
+   */
+  readonly prompt: BuiltPrompt | null
+  /**
+   * `buildPrompt` threw. The one way that happens is a reference list that
+   * `orderReferences` rejects — two handles for the same role — which
+   * `BuilderStateSchema` does not forbid, so a hand-edited draft can produce
+   * it. The UI says so instead of going blank.
+   */
+  readonly promptFailed: boolean
+  /**
+   * SHA-256 of `prompt.markdown`, or `null` while it is being computed.
+   *
+   * `jobs.generate` carries this checksum beside the state and main refuses
+   * the job when its own build of the prompt hashes differently
+   * (`src/shared/ipc-contract.ts`), which is why it lives here rather than in
+   * `BuilderState`. `sha256Hex` is Web Crypto and therefore asynchronous.
+   */
+  readonly promptSha256: string | null
 
   /** Reads `workspace/drafts/current.json` and adopts it (spec section 4.6). */
   loadDraft: () => Promise<void>
@@ -126,6 +159,37 @@ export function formatNegativeConstraints(constraints: readonly string[]): strin
   return constraints.join('\n')
 }
 
+/**
+ * Builds the prompt for a state, in the renderer, with no IPC at all.
+ *
+ * `orderReferences` is the one place labels are derived (plan decision Q14):
+ * sort by role, then hand out Image A… over the references that are present,
+ * so an empty `style` slot makes `identity` "Image A" here exactly as it will
+ * in `job.json`.
+ */
+function derivePrompt(state: BuilderState): { prompt: BuiltPrompt | null; promptFailed: boolean } {
+  try {
+    const ordered = orderReferences(state.references.map(toPromptReference))
+
+    return { prompt: buildPrompt(state, ordered), promptFailed: false }
+  } catch {
+    return { prompt: null, promptFailed: true }
+  }
+}
+
+/**
+ * The three fields the prompt needs (spec section 4.3), the same projection
+ * `src/main/job-materializer.ts` makes. It keeps the reference handle out of
+ * the pure prompt builder and keeps the optional `note` exactly optional.
+ */
+function toPromptReference(reference: BuilderReference): PromptReference {
+  return {
+    role: reference.role,
+    originalName: reference.originalName,
+    ...(reference.note === undefined ? {} : { note: reference.note })
+  }
+}
+
 interface BuilderData {
   state: BuilderState
   negativeConstraintsText: string
@@ -137,6 +201,9 @@ interface BuilderData {
   loadErrorCode: IpcErrorCode | null
   saveErrorCode: IpcErrorCode | null
   pickErrorCode: IpcErrorCode | null
+  prompt: BuiltPrompt | null
+  promptFailed: boolean
+  promptSha256: string | null
 }
 
 function initialData(): BuilderData {
@@ -154,7 +221,9 @@ function initialData(): BuilderData {
     savedAt: null,
     loadErrorCode: null,
     saveErrorCode: null,
-    pickErrorCode: null
+    pickErrorCode: null,
+    ...derivePrompt(state),
+    promptSha256: null
   }
 }
 
@@ -228,15 +297,49 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
       }))
     }
 
-    /** Records a user edit and restarts the autosave window. */
+    /**
+     * Recomputes the prompt checksum for whatever prompt the store now holds.
+     *
+     * `sha256Hex` is asynchronous, so a fast typist can have several digests in
+     * flight at once. The markdown the digest was taken of is the token: a
+     * result is only written when it still matches, which drops every stale
+     * answer without a counter or a cancellation token.
+     */
+    function refreshChecksum(): void {
+      const prompt = get().prompt
+
+      set({ promptSha256: null })
+
+      if (prompt === null) {
+        return
+      }
+
+      const markdown = prompt.markdown
+
+      void sha256Hex(markdown).then(
+        (digest) => {
+          if (get().prompt?.markdown === markdown) {
+            set({ promptSha256: digest })
+          }
+        },
+        () => {
+          // Web Crypto is unavailable. The preview still shows the prompt; the
+          // checksum stays pending and `jobs.generate` has nothing to send.
+        }
+      )
+    }
+
+    /** Records a user edit, rebuilds the prompt and restarts the autosave. */
     function edit(state: BuilderState, text?: string): void {
       set({
         state,
         valid: BuilderStateSchema.safeParse(state).success,
         pristine: false,
         dirty: true,
-        ...(text === undefined ? {} : { negativeConstraintsText: text })
+        ...(text === undefined ? {} : { negativeConstraintsText: text }),
+        ...derivePrompt(state)
       })
+      refreshChecksum()
       scheduleSave()
     }
 
@@ -279,8 +382,10 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
           dirty: false,
           saving: false,
           savedAt,
-          saveErrorCode: null
+          saveErrorCode: null,
+          ...derivePrompt(state)
         })
+        refreshChecksum()
       },
 
       setSubjectField: (field: SubjectTextField, value: string): void => {
@@ -360,6 +465,7 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
       reset: (): void => {
         cancelScheduledSave()
         set(initialData())
+        refreshChecksum()
       }
     }
   })

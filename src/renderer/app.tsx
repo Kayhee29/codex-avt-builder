@@ -12,7 +12,9 @@
 import { useEffect, type JSX } from 'react'
 
 import { builderStatusText, vi } from './i18n/vi.ts'
+import { CharacterForm } from './components/CharacterForm.tsx'
 import { Layout } from './components/Layout.tsx'
+import { PromptPreview } from './components/PromptPreview.tsx'
 import { selectBuilderStatus, useBuilderStore } from './store/builder.ts'
 import { useJobsStore } from './store/jobs.ts'
 import './styles/app.css'
@@ -36,14 +38,14 @@ export function App(): JSX.Element {
   return (
     <Layout
       status={builderStatusText(status)}
-      characterDirection={<Placeholder />}
+      characterDirection={<CharacterForm />}
       referenceSlots={<Placeholder />}
-      promptPreview={<Placeholder />}
+      promptPreview={<PromptPreview />}
     />
   )
 }
 
-/** Stands in for the panels plan Tasks 5.2 and 5.3 put in the three columns. */
+/** Stands in for the panel plan Task 5.3 puts in the middle column. */
 function Placeholder(): JSX.Element {
   return <p className="column__reserved">{vi.layout.reserved}</p>
 }

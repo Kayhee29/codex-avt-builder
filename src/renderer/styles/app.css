@@ -191,6 +191,14 @@
   gap: 12px;
 }
 
+/* Prompt and mapping stand side by side, and stack when the column is narrow. */
+.preview__panes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
 .preview__note,
 .preview__checksum {
   margin: 0;
