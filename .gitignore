@@ -17,6 +17,8 @@ test-results/
 # Drafts, jobs and every generated or copied image are local runtime data.
 workspace/drafts/
 workspace/jobs/
+# Holds the machine-specific Codex executable override (plan Task 3.1).
+workspace/settings.json
 workspace/**/*.png
 workspace/**/*.jpg
 workspace/**/*.jpeg
