@@ -45,7 +45,7 @@ Spec để ngỏ một số điểm. Plan chốt như sau và các quyết đị
 | Q5 | Áp preset lên draft có dữ liệu (mục 4.4) | Áp preset là hành động explicit. Hàm thuần `previewPresetApply(draft, preset)` trả danh sách field sẽ đổi; UI hiển thị rồi mới `applyPreset`. Sau khi áp, edit của người dùng thắng. Thứ tự merge khi tạo draft mới từ anchor: preset defaults, rồi anchor defaults, rồi giá trị người dùng nhập. |
 | Q6 | "Revision" (mục 4.6, 10) | Không có trong phiên bản đầu. Retry luôn là duplicate job thành draft mới rồi Generate thành job mới. |
 | Q7 | IPC bổ sung (mục 8) | Thêm `system.preflight()`, `system.getSettings()`, `system.setSettings(patch)` (chỉ có `codexExecutable`), `library.deletePreset(id)`. Không thêm gì khác. |
-| Q8 | Fake Codex trong test (mục 13) | Codex runner nhận `launcher = { command, prefixArgs }`. Production: `{ command: <exe đã resolve>, prefixArgs: [] }`. Test: `{ command: process.execPath, prefixArgs: ['tests/fake-codex/fake-codex.mjs'] }`. Argument `exec --json ...` luôn nối sau `prefixArgs`, nên test kiểm tra được đúng argv mà không cần file `.exe`. |
+| Q8 | Fake Codex trong test (mục 13) | Codex runner nhận `launcher = { command, prefixArgs }`. Production: `{ command: <exe đã resolve>, prefixArgs: [] }`. Test: `{ command: process.execPath, prefixArgs: ['tests/fake-codex/fake-codex.mjs'] }`. Argument `exec --json ...` luôn nối sau `prefixArgs`, nên test kiểm tra được đúng argv mà không cần file `.exe`. **Trong e2e thì khác:** `process.execPath` ở main process là `electron.exe`, nên launcher này khởi động một app Electron thứ hai thay vì chạy fake, và preflight treo hết 10 giây timeout rồi mới báo `CODEX_NOT_FOUND`. Phải đặt `ELECTRON_RUN_AS_NODE=1` trên `CodexLauncher.env`. |
 | Q9 | State renderer | `zustand`, một store cho builder, một store cho jobs. Không có boolean `loading` chung (mục 12). |
 | Q10 | Ngôn ngữ UI | Chuỗi hiển thị tiếng Việt, tập trung trong `src/renderer/i18n/vi.ts`. Code, identifier, log và error code bằng tiếng Anh. |
 | Q11 | Đo ảnh | Magic bytes PNG, JPEG, WebP tự viết trong `src/main/image-inspect.ts` (vài chục dòng). Kích thước dùng package `image-size`. Không dùng `file-type` vì chỉ cần ba định dạng. |
@@ -434,6 +434,8 @@ e2e/                       Playwright Electron
 **Files:** `playwright.config.ts`, `e2e/fixtures.ts`, `e2e/helpers/workspace.ts`.
 
 **Hành vi:** launch app đã build với env `STUDIO_WORKSPACE=<tmp>`, `STUDIO_CODEX_LAUNCHER=fake` để main dùng launcher Q8 (chỉ chấp nhận khi `NODE_ENV=test`), `FAKE_CODEX_SCENARIO` theo test.
+
+**Lưu ý:** ở đúng commit này `pnpm test:e2e` sẽ đỏ với "No tests found", vì spec file chỉ xuất hiện ở Task 6.2. Đó là hệ quả của cách chia task, không phải lỗi.
 
 **Commit:** `test(e2e): Playwright Electron harness with fake Codex`
 
