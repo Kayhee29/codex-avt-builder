@@ -95,6 +95,17 @@ export interface CodexPreflightOptions {
 export interface PreflightOutcome {
   readonly result: PreflightResult
   readonly launcher: CodexLauncher | null
+  /**
+   * Every path the resolver probed, present only when resolution is what
+   * failed.
+   *
+   * Spec section 5.3 wants the executable question answered in `events.jsonl`
+   * for diagnosis. On success the answer is the path in `studio.meta`; on a
+   * `CODEX_NOT_FOUND` it is this list, which the orchestrator of plan Task 3.7
+   * writes into the job's log. It never crosses IPC: `PreflightResult.message`
+   * is what the renderer sees.
+   */
+  readonly attempts?: readonly string[]
 }
 
 /**
@@ -133,7 +144,7 @@ export async function runCodexPreflight(
       })
     } catch (error) {
       if (error instanceof CodexResolveError) {
-        return failed('CODEX_NOT_FOUND', error.message)
+        return failed('CODEX_NOT_FOUND', error.message, error.attempts)
       }
 
       throw error
@@ -317,9 +328,14 @@ export async function runCodexCommand(
 
 function failed(
   code: 'CODEX_NOT_FOUND' | 'CODEX_VERSION_UNSUPPORTED' | 'CODEX_NOT_AUTHENTICATED',
-  message: string
+  message: string,
+  attempts?: readonly string[]
 ): PreflightOutcome {
-  return { result: { ok: false, code, message }, launcher: null }
+  return {
+    result: { ok: false, code, message },
+    launcher: null,
+    ...(attempts === undefined ? {} : { attempts })
+  }
 }
 
 /**
