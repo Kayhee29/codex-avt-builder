@@ -24,7 +24,12 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    // The window is sandboxed (spec section 11), and a sandboxed preload can
+    // only `require` Electron and a few Node built-ins — nothing from
+    // `node_modules`. The preload validates every request with zod
+    // (plan Task 4.1), so zod has to be bundled into it rather than
+    // externalized the way the main process can afford to.
+    plugins: [externalizeDepsPlugin({ exclude: ['zod'] })],
     resolve: {
       alias: {
         '@shared': resolve(__dirname, 'src/shared')
