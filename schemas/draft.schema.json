@@ -1,0 +1,232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft",
+  "description": "workspace/drafts/current.json, the autosaved builder state plus the reference paths main re-registers on load (spec section 4.6, plan decision Q3).",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "savedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pose": {
+              "type": "string"
+            },
+            "expression": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "references": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "referenceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "style",
+                  "identity",
+                  "outfit",
+                  "equipment",
+                  "extra"
+                ]
+              },
+              "originalName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "displayPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "mimeType": {
+                "type": "string",
+                "enum": [
+                  "image/png",
+                  "image/jpeg",
+                  "image/webp"
+                ]
+              },
+              "sizeBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "width": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "height": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "note": {
+                "type": "string"
+              },
+              "missing": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "referenceId",
+              "role",
+              "originalName",
+              "displayPath",
+              "mimeType",
+              "sizeBytes",
+              "width",
+              "height",
+              "sha256",
+              "missing"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "aspectRatio": {
+              "type": "string",
+              "minLength": 1
+            },
+            "background": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "png",
+                "jpg",
+                "webp"
+              ]
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "aspectRatio",
+            "background",
+            "format",
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        "negativeConstraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "preset": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "anchor": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "preset",
+            "anchor"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "subject",
+        "references",
+        "output",
+        "negativeConstraints",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "referencePaths": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "savedAt",
+    "state",
+    "referencePaths"
+  ],
+  "additionalProperties": false
+}

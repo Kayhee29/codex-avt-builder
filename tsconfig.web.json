@@ -21,6 +21,12 @@
     "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true,
 
+    // `src/shared/` uses `.ts` extensions in relative imports so the same
+    // files also run under Node's native TypeScript support
+    // (see `scripts/export-schemas.ts`).
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "esModuleInterop": true,

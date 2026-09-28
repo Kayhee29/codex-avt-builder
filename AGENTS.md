@@ -54,17 +54,17 @@ Directories appear as the plan's tasks create them; several are still empty.
 
 ## Commands
 
-| Command                             | What it does                                                           |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| `pnpm install`                      | install dependencies (pnpm only)                                       |
-| `pnpm dev`                          | run the app with electron-vite                                         |
-| `pnpm build`                        | build main, preload and renderer into `out/`                           |
-| `pnpm typecheck`                    | `tsc --noEmit` over the node project and the web project               |
-| `pnpm lint`                         | eslint                                                                 |
-| `pnpm format` / `pnpm format:check` | prettier                                                               |
-| `pnpm test`                         | vitest, unit and integration                                           |
-| `pnpm test:e2e`                     | Playwright end-to-end (placeholder until plan Task 6.1)                |
-| `pnpm export-schemas`               | regenerate `schemas/*.json` from zod (placeholder until plan Task 1.2) |
+| Command                             | What it does                                                   |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `pnpm install`                      | install dependencies (pnpm only)                               |
+| `pnpm dev`                          | run the app with electron-vite                                 |
+| `pnpm build`                        | build main, preload and renderer into `out/`                   |
+| `pnpm typecheck`                    | `tsc --noEmit` over the node project and the web project       |
+| `pnpm lint`                         | eslint                                                         |
+| `pnpm format` / `pnpm format:check` | prettier                                                       |
+| `pnpm test`                         | vitest, unit and integration                                   |
+| `pnpm test:e2e`                     | Playwright end-to-end (placeholder until plan Task 6.1)        |
+| `pnpm export-schemas`               | regenerate `schemas/*.json` from `src/shared/schemas.ts` (zod) |
 
 Before any commit: `pnpm typecheck`, `pnpm lint` and `pnpm test` must pass.
 

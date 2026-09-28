@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CodexResult",
+  "description": "codex-result.json, the executor report written by Codex (spec section 7.1). The UI never reads this file.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "jobId": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?-\\d{3}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "failed"
+      ]
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^outputs\\/[A-Za-z0-9._-]+\\.(png|jpg|webp)$"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "INVALID_JOB",
+                "MISSING_REFERENCE",
+                "IMAGE_CAPABILITY_UNAVAILABLE",
+                "GENERATION_FAILED"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "jobId",
+    "status",
+    "outputs",
+    "error"
+  ],
+  "additionalProperties": false
+}

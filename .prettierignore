@@ -8,3 +8,7 @@ workspace
 
 # Spec and plan are authored documents; prettier must not reflow them.
 docs
+
+# Generated from src/shared/schemas.ts by `pnpm export-schemas`; the sync test
+# compares bytes, so prettier must not reformat them.
+schemas

@@ -20,6 +20,12 @@
     "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true,
 
+    // `scripts/export-schemas.ts` runs on Node's native TypeScript support,
+    // which needs the real `.ts` extension in relative specifiers, so
+    // `src/shared/` uses `.ts` extensions throughout.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "esModuleInterop": true,
@@ -34,6 +40,7 @@
   "include": [
     "electron.vite.config.ts",
     "vitest.config.ts",
+    "scripts/**/*.ts",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",

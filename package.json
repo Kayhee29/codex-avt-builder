@@ -22,7 +22,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "echo e2e suite is not implemented yet - Task 6.1 adds the Playwright Electron harness",
-    "export-schemas": "node -e \"console.error('export-schemas is not implemented yet - Task 1.2 adds scripts/export-schemas.ts'); process.exit(1)\""
+    "export-schemas": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
