@@ -362,6 +362,7 @@ describe('duplicating a job (spec section 10)', () => {
       }
     ],
     output: { aspectRatio: '3:4', background: 'giấy ấm', format: 'png', count: 2 },
+    negativeConstraints: ['không chữ', 'không watermark'],
     source: { preset: 'chibi-master-v1', anchor: null },
     promptPath: 'prompt.md',
     promptSha256: 'b'.repeat(64)
@@ -412,7 +413,7 @@ describe('duplicating a job (spec section 10)', () => {
     expect(JSON.stringify(builder().state)).not.toContain('inputs/')
   })
 
-  it('saves the new draft and says the negative constraints have to be retyped', async () => {
+  it('saves the new draft and restores the negative constraints from the packet', async () => {
     render(<RecentJobs />)
     fireEvent.click(screen.getByRole('button', { name: 'Nhân bản' }))
 
@@ -420,10 +421,10 @@ describe('duplicating a job (spec section 10)', () => {
       expect(fake.channels['draft.save']).toHaveBeenCalledTimes(1)
     })
 
-    // job.json carries no negative constraints (spec section 6.2), so they
-    // cannot be restored and the panel says so rather than losing them quietly.
-    expect(builder().state.negativeConstraints).toEqual([])
-    expect(screen.getByText(/Ràng buộc loại trừ không được lưu trong job\.json/)).toBeDefined()
+    // `job.json` stores them as their own field (spec section 6.2), so a
+    // duplicate keeps every constraint the original job ran with.
+    expect(builder().state.negativeConstraints).toEqual(['không chữ', 'không watermark'])
+    expect(screen.getByText('Đã dựng nháp mới từ job này.')).toBeDefined()
   })
 
   it('reports a job the main process would not read back', async () => {

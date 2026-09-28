@@ -232,6 +232,17 @@ describe('materialize', () => {
     )
   })
 
+  it('stores the negative constraints as their own field (spec section 6.2)', async () => {
+    const job = await materialize(
+      builderState([], { negativeConstraints: ['no text', ' No  Text ', 'no watermark'] })
+    )
+
+    // De-duplicated the way the prompt de-duplicates them, so the packet and
+    // the text of prompt.md list the same constraints in the same order.
+    expect(job.packet.negativeConstraints).toEqual(['no text', 'no watermark'])
+    expect(await readFile(join(job.directory, 'prompt.md'), 'utf8')).toContain('- no watermark')
+  })
+
   it('writes the previewed prompt and records its checksum', async () => {
     const state = builderState([await handle(sources.style, 'style')])
     const checksum = await previewChecksum(state)

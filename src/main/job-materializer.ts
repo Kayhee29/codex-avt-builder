@@ -149,7 +149,7 @@ export class JobMaterializer {
   async materialize(state: BuilderStateInput, promptSha256: string): Promise<MaterializedJob> {
     const validated = this.#validate(state)
     const ordered = assignReferenceLabels(validated.references)
-    const { markdown } = buildPrompt(validated, ordered.map(toPromptReference))
+    const { markdown, negativeConstraints } = buildPrompt(validated, ordered.map(toPromptReference))
 
     if ((await sha256Hex(markdown)) !== promptSha256) {
       throw new MaterializeError(
@@ -207,6 +207,9 @@ export class JobMaterializer {
       subject: validated.subject,
       references,
       output: validated.output,
+      // The same list the prompt printed, so a duplicate of this job gets back
+      // exactly the constraints this job ran with (spec section 6.2).
+      negativeConstraints,
       source: validated.source,
       promptPath: PROMPT_FILE_NAME,
       promptSha256

@@ -206,8 +206,7 @@ export const vi = {
     noThumbnail: 'Chưa có ảnh.',
     warnings: 'Cảnh báo',
     actionFailed: 'Không thực hiện được thao tác này.',
-    duplicated:
-      'Đã dựng nháp mới từ job này. Ràng buộc loại trừ không được lưu trong job.json nên cần nhập lại.'
+    duplicated: 'Đã dựng nháp mới từ job này.'
   },
 
   generate: {

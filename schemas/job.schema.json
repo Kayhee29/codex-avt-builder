@@ -166,6 +166,13 @@
       ],
       "additionalProperties": false
     },
+    "negativeConstraints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "source": {
       "type": "object",
       "properties": {
@@ -217,6 +224,7 @@
     "subject",
     "references",
     "output",
+    "negativeConstraints",
     "source",
     "promptPath",
     "promptSha256"

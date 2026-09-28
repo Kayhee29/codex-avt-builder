@@ -73,6 +73,7 @@ const SPEC_JOB_PACKET = {
     format: 'png',
     count: 1
   },
+  negativeConstraints: ['no text', 'no watermark'],
   source: {
     preset: 'chibi-master-v1',
     anchor: 'nixon-v1'

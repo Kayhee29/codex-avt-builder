@@ -152,6 +152,14 @@ export const JobPacketSchema = z.strictObject({
   subject: SubjectSchema,
   references: z.array(JobReferenceSchema).max(MAX_REFERENCES),
   output: OutputRequestSchema,
+  /**
+   * The merged, de-duplicated negative constraints (spec section 6.2).
+   *
+   * They are stored as their own field rather than left inside the text of
+   * `prompt.md`: duplicating a job (spec section 4.6) rebuilds a draft from the
+   * packet, and without this field every constraint the user typed was lost.
+   */
+  negativeConstraints: z.array(z.string().min(1)),
   source: SourceRefsSchema,
   promptPath: z.literal('prompt.md'),
   promptSha256: Sha256Schema

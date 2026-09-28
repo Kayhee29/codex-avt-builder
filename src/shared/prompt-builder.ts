@@ -60,6 +60,14 @@ export interface BuiltPrompt {
   readonly markdown: string
   /** The same references as rows for the UI mapping table. */
   readonly mapping: MappingRow[]
+  /**
+   * The negative constraints exactly as the prompt lists them: the preset's and
+   * the user's, merged and de-duplicated.
+   *
+   * `job.json` stores this list (spec section 6.2), and it comes from here so
+   * the packet and the text of `prompt.md` cannot disagree.
+   */
+  readonly negativeConstraints: string[]
 }
 
 /** Thrown when the references handed to {@link buildPrompt} are not ordered. */
@@ -186,7 +194,7 @@ export function buildPrompt(
 
   const markdown = `${sections.map((body, index) => `${HEADING_PREFIX}${PROMPT_SECTION_TITLES[index] ?? ''}\n\n${body}`).join('\n\n')}\n`
 
-  return { markdown, mapping: references.map(toMappingRow) }
+  return { markdown, mapping: references.map(toMappingRow), negativeConstraints }
 }
 
 /**

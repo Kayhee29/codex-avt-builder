@@ -247,10 +247,8 @@ export function createJobsStore(): UseBoundStore<StoreApi<JobsStore>> {
  * (spec section 11, plan decision Q3), and `job.json` already carries each
  * one's role and note.
  *
- * `negativeConstraints` starts empty, and that is a limitation rather than a
- * choice: `job.json` (spec section 6.2) has no field for them. They exist only
- * as rendered text inside `prompt.md`, so there is nothing to read them back
- * from. The recent-jobs panel says so after a duplicate.
+ * `negativeConstraints` comes straight from the packet: spec section 6.2 makes
+ * it a field of `job.json` precisely so duplicating a job does not drop it.
  */
 export function builderStateFromJob(
   job: JobPacket,
@@ -261,7 +259,7 @@ export function builderStateFromJob(
     subject: job.subject,
     references: dedupeReferenceRoles(references),
     output: job.output,
-    negativeConstraints: [],
+    negativeConstraints: [...job.negativeConstraints],
     source: job.source
   }
 }
