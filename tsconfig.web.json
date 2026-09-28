@@ -39,5 +39,16 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/shared/**/*.ts"]
+  // The renderer's own tests are part of this project rather than a fourth
+  // one: they are `.tsx`, they render React and they need the DOM lib, and
+  // `tsconfig.node.json` only ever matched `tests/**/*.ts` (plan Task 5.1).
+  // `tsconfig.node.json` excludes the same directory, so every test file is
+  // checked exactly once.
+  "include": [
+    "src/renderer/**/*.ts",
+    "src/renderer/**/*.tsx",
+    "src/shared/**/*.ts",
+    "tests/unit/renderer/**/*.ts",
+    "tests/unit/renderer/**/*.tsx"
+  ]
 }

@@ -1,0 +1,373 @@
+/*
+ * The builder shell: three columns over a bottom bar (plan Task 5.1).
+ *
+ * Plain CSS, no framework and no remote stylesheet: the packaged renderer is
+ * loaded from the local filesystem and must not fetch anything (spec section
+ * 11, plan decision Q15).
+ */
+
+:root {
+  --surface: #ffffff;
+  --surface-sunken: #f4f5f7;
+  --border: #d8dbe0;
+  --text: #16181d;
+  --text-muted: #5d636e;
+  --accent: #2f5bd7;
+  --warning-border: #d9a441;
+  --warning-surface: #fdf6e6;
+  --danger: #b3261e;
+  --radius: 6px;
+  --gap: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  gap: var(--gap);
+  padding: var(--gap);
+}
+
+.app__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap);
+}
+
+.app__title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.app__subtitle {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.app__status {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.app__banner:empty {
+  display: none;
+}
+
+.app__columns {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(300px, 1fr) minmax(320px, 1.2fr);
+  gap: var(--gap);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.column__title,
+.bottom-region__title {
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-sunken);
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.column__body {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.column__reserved,
+.bottom-region__reserved {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.app__bottom {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gap);
+}
+
+.bottom-region {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-height: 84px;
+}
+
+/* --- character direction form (plan Task 5.2) --- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form__group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form__legend {
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.field__hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.field__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* --- prompt preview (plan Task 5.2) --- */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview__note,
+.preview__checksum {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.preview__markdown {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.mapping {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.mapping th,
+.mapping td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.mapping th {
+  background: var(--surface-sunken);
+}
+
+.mapping__empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* --- reference slots (plan Task 5.3) --- */
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.slots__warning {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-surface);
+  font-size: 0.78rem;
+}
+
+.slot {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slot--missing {
+  border-color: var(--warning-border);
+  background: var(--warning-surface);
+}
+
+.slot__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.slot__name {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.slot__role {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: 'Cascadia Mono', Consolas, monospace;
+}
+
+.slot__description,
+.slot__empty {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.slot__body {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.slot__thumbnail {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.slot__thumbnail--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px;
+}
+
+.slot__meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  font-size: 0.74rem;
+}
+
+.slot__meta dt {
+  color: var(--text-muted);
+}
+
+.slot__meta dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.slot__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.slot__warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.76rem;
+}
+
+button {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button:disabled {
+  cursor: default;
+  color: var(--text-muted);
+}

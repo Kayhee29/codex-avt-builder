@@ -26,10 +26,13 @@
   },
   "dependencies": {
     "image-size": "2.0.4",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
     "@types/node": "24.19.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -40,6 +43,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.12.0",
+    "jsdom": "30.1.1",
     "prettier": "3.9.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",

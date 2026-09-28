@@ -45,5 +45,9 @@
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
     "tests/**/*.ts"
-  ]
+  ],
+  // Renderer tests are React and DOM code; they belong to the web project
+  // (tsconfig.web.json), which has the DOM lib and `jsx: react-jsx`. Without
+  // this they would be checked here, with `lib: ["ES2023"]` and no `window`.
+  "exclude": ["tests/unit/renderer/**"]
 }
