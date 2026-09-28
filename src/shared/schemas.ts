@@ -196,7 +196,15 @@ export const RESULT_ERROR_CODES = [
 
 export const ResultErrorCodeSchema = z.enum(RESULT_ERROR_CODES)
 
-/** The three terminal run states written to result.json (spec section 12). */
+/**
+ * The three terminal run states written to result.json (spec section 12).
+ *
+ * The same three values are `TERMINAL_RUN_STATES` in `./progress.ts`, which is
+ * where the run-state vocabulary lives. They are spelled out again here rather
+ * than imported, because `progress.ts` imports this file and one direction of
+ * dependency is enough; `tests/unit/ipc-contract.test.ts` asserts the two lists
+ * stay identical.
+ */
 export const ResultStatusSchema = z.enum(['succeeded', 'failed', 'cancelled'])
 
 /**
@@ -369,43 +377,6 @@ export const DraftSchema = z.strictObject({
 })
 
 // ---------------------------------------------------------------------------
-// Run state and progress (spec sections 5.5 and 12)
-// ---------------------------------------------------------------------------
-
-/**
- * The one run-state vocabulary, always set by the main process and never
- * inferred from a Codex event name (spec sections 5.5 and 12).
- *
- * Plan Task 1.6 owns `src/shared/progress.ts`; until it exists these live here
- * so the schema export and the IPC contract agree on one definition.
- */
-export const RUN_STATES = [
-  'queued',
-  'preflight',
-  'running',
-  'verifying',
-  'succeeded',
-  'failed',
-  'cancelled'
-] as const
-
-export const TERMINAL_RUN_STATES = ['succeeded', 'failed', 'cancelled'] as const
-
-export const RunStateSchema = z.enum(RUN_STATES)
-
-/**
- * Payload of `jobs.onProgress` (spec section 5.5). `activity` is display text
- * only and must never be used to branch logic (spec section 12).
- */
-export const ProgressEventSchema = z.strictObject({
-  jobId: JobIdSchema,
-  state: RunStateSchema,
-  activity: z.string().optional(),
-  seq: z.int().nonnegative(),
-  at: IsoTimestampSchema
-})
-
-// ---------------------------------------------------------------------------
 // Settings (plan decision Q7)
 // ---------------------------------------------------------------------------
 
@@ -443,6 +414,4 @@ export type Anchor = z.infer<typeof AnchorSchema>
 export type BuilderReference = z.infer<typeof BuilderReferenceSchema>
 export type BuilderState = z.infer<typeof BuilderStateSchema>
 export type Draft = z.infer<typeof DraftSchema>
-export type RunState = z.infer<typeof RunStateSchema>
-export type ProgressEvent = z.infer<typeof ProgressEventSchema>
 export type Settings = z.infer<typeof SettingsSchema>

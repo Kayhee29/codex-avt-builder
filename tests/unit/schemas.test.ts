@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+// The run-state vocabulary and the progress payload moved to
+// `src/shared/progress.ts` with plan Task 1.6; `tests/unit/ipc-contract.test.ts`
+// covers them.
+import { TERMINAL_RUN_STATES } from '@shared/progress'
 import {
   AnchorSchema,
   BuilderStateSchema,
@@ -8,13 +12,10 @@ import {
   DraftSchema,
   JobPacketSchema,
   PresetSchema,
-  ProgressEventSchema,
   RESULT_ERROR_CODES,
   ResultSchema,
-  RUN_STATES,
   SettingsSchema,
-  SHA256_REGEX,
-  TERMINAL_RUN_STATES
+  SHA256_REGEX
 } from '@shared/schemas'
 
 /**
@@ -197,15 +198,6 @@ const ANCHOR = {
   sourceJobId: '2026-09-28-richard-nixon-001'
 }
 
-/** The jobs.onProgress payload from spec section 5.5. */
-const PROGRESS_EVENT = {
-  jobId: '2026-09-28-richard-nixon-001',
-  state: 'running',
-  activity: 'Đang gọi image_gen',
-  seq: 42,
-  at: '2026-09-28T10:00:40Z'
-}
-
 const SETTINGS = { schemaVersion: 1, codexExecutable: null }
 
 describe('spec examples', () => {
@@ -225,10 +217,6 @@ describe('spec examples', () => {
   it('parses the result.json example of spec section 7.2', () => {
     expect(ResultSchema.parse(SPEC_RESULT)).toEqual(SPEC_RESULT)
   })
-
-  it('parses the jobs.onProgress payload of spec section 5.5', () => {
-    expect(ProgressEventSchema.parse(PROGRESS_EVENT)).toEqual(PROGRESS_EVENT)
-  })
 })
 
 describe('strictness', () => {
@@ -240,7 +228,6 @@ describe('strictness', () => {
     ['Anchor', AnchorSchema, ANCHOR],
     ['Draft', DraftSchema, DRAFT],
     ['BuilderState', BuilderStateSchema, BUILDER_STATE],
-    ['ProgressEvent', ProgressEventSchema, PROGRESS_EVENT],
     ['Settings', SettingsSchema, SETTINGS]
   ] as const
 
@@ -412,38 +399,6 @@ describe('result.json', () => {
       expect(ResultSchema.safeParse({ ...SPEC_RESULT, status }).success).toBe(false)
     }
   )
-})
-
-describe('progress events', () => {
-  it.each(RUN_STATES)('accepts run state %s', (state) => {
-    expect(ProgressEventSchema.safeParse({ ...PROGRESS_EVENT, state }).success).toBe(true)
-  })
-
-  it('lists the seven run states of spec section 12', () => {
-    expect(RUN_STATES).toEqual([
-      'queued',
-      'preflight',
-      'running',
-      'verifying',
-      'succeeded',
-      'failed',
-      'cancelled'
-    ])
-  })
-
-  it('rejects an unknown run state', () => {
-    expect(ProgressEventSchema.safeParse({ ...PROGRESS_EVENT, state: 'loading' }).success).toBe(
-      false
-    )
-  })
-
-  it('allows a state change with no activity text', () => {
-    const { activity: _activity, ...withoutActivity } = PROGRESS_EVENT
-
-    expect(ProgressEventSchema.safeParse({ ...withoutActivity, state: 'queued' }).success).toBe(
-      true
-    )
-  })
 })
 
 describe('builder state', () => {
