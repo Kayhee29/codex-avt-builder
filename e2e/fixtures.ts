@@ -107,13 +107,20 @@ export const test = base.extend<StudioOptions & StudioFixtures>({
   codexLauncher: ['fake', { option: true }],
   closeAnswer: ['quit', { option: true }],
 
-  workspace: async ({}, use) => {
+  workspace: async ({}, use, testInfo) => {
     const workspace = await E2eWorkspace.create()
 
     try {
       await use(workspace)
     } finally {
-      await workspace.remove()
+      // `STUDIO_E2E_KEEP=1` leaves a failed test's workspace on disk, which is
+      // the only way to read the `result.json` and `events.jsonl` that explain
+      // why a run ended the way it did.
+      if (process.env['STUDIO_E2E_KEEP'] === '1' && testInfo.status !== testInfo.expectedStatus) {
+        console.warn(`e2e: kept the workspace of a failed test at ${workspace.base}`)
+      } else {
+        await workspace.remove()
+      }
     }
   },
 
@@ -124,8 +131,12 @@ export const test = base.extend<StudioOptions & StudioFixtures>({
       )
     }
 
+    // The repository root, not `out/main/index.js`: Electron then reads the
+    // `main` field of `package.json` and `app.getAppPath()` is the repository,
+    // which is where `tests/fake-codex/` lives. Pointing it straight at the
+    // bundle makes the app path `out/main`, and the fake cannot be found.
     const app = await electron.launch({
-      args: [MAIN_ENTRY],
+      args: [REPO_ROOT],
       cwd: REPO_ROOT,
       env: launchEnv({ workspace, codexScenario, codexLauncher, closeAnswer })
     })

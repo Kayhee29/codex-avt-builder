@@ -117,7 +117,14 @@ export function testCodexLauncher(
     command: process.execPath,
     prefixArgs: [script],
     source: 'path',
-    env: fakeCodexEnvFrom(env)
+    env: {
+      // `process.execPath` is `electron.exe` here, not `node`. Without this the
+      // launcher of plan decision Q8 would start a second Electron app instead
+      // of running the fake script, and preflight would sit there until its
+      // ten-second `--version` timeout (spec section 5.3).
+      ELECTRON_RUN_AS_NODE: '1',
+      ...fakeCodexEnvFrom(env)
+    }
   }
 }
 

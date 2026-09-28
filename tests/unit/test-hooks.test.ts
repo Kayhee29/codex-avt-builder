@@ -76,7 +76,10 @@ describe('testCodexLauncher', () => {
 
     // `minimalCodexEnv` drops what it does not name, so the scenario has to
     // ride on the launcher or every run would silently be `success`.
+    // `ELECTRON_RUN_AS_NODE` is what makes `process.execPath` — the Electron
+    // binary, inside the app — run the script instead of a second app.
     expect(launcher?.env).toEqual({
+      ELECTRON_RUN_AS_NODE: '1',
       FAKE_CODEX_SCENARIO: 'capability-unavailable',
       FAKE_CODEX_LOGIN: '1'
     })
