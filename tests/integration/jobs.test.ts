@@ -473,6 +473,40 @@ describe('JobService.cancel', () => {
   })
 })
 
+/**
+ * What the close guard of plan Task 5.6 calls when the window is closing on
+ * top of a run: cancel everything, then wait until each of those has written
+ * its `result.json` with `CANCELLED` (spec sections 7.4 and 10).
+ */
+describe('JobService.cancelAll and whenIdle (plan Task 5.6)', () => {
+  it('cancels the run in flight and leaves a CANCELLED result behind', async () => {
+    const jobs = service(passingPreflight('hang'))
+    const { state, promptSha256 } = await builderInput()
+    const started = await jobs.generate(state, promptSha256)
+
+    await waitFor(() => runner.isRunning(started.jobId))
+
+    expect(jobs.cancelAll()).toEqual([started.jobId])
+
+    await jobs.whenIdle()
+
+    // `whenIdle` resolving is the promise the close guard relies on: by then
+    // the file is on disk and the app may quit.
+    const result = await readResult(started.jobId)
+
+    expect(result?.status).toBe('cancelled')
+    expect(result?.error?.code).toBe('CANCELLED')
+    expect(jobs.running).toEqual([])
+  })
+
+  it('answers immediately when nothing is running', async () => {
+    const jobs = service(passingPreflight('success'))
+
+    expect(jobs.cancelAll()).toEqual([])
+    await expect(jobs.whenIdle()).resolves.toBeUndefined()
+  })
+})
+
 describe('JobService.get', () => {
   it('refuses an invalid job ID before touching the filesystem', async () => {
     const jobs = service(passingPreflight('success'))

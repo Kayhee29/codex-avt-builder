@@ -14,6 +14,7 @@ import { useEffect, type JSX } from 'react'
 import { builderStatusText } from './i18n/vi.ts'
 import { AnchorPanel } from './components/AnchorPanel.tsx'
 import { CharacterForm } from './components/CharacterForm.tsx'
+import { CloseGuard } from './components/CloseGuard.tsx'
 import { GenerateBar } from './components/GenerateBar.tsx'
 import { Layout } from './components/Layout.tsx'
 import { PreflightBanner } from './components/PreflightBanner.tsx'
@@ -52,7 +53,12 @@ export function App(): JSX.Element {
   return (
     <Layout
       status={builderStatusText(status)}
-      banner={<PreflightBanner />}
+      banner={
+        <>
+          <PreflightBanner />
+          <CloseGuard />
+        </>
+      }
       characterDirection={<CharacterForm />}
       referenceSlots={<ReferenceSlots />}
       promptPreview={<PromptPreview />}

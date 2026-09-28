@@ -13,13 +13,15 @@
  *    `result.json` before the window can list it (plan decision Q13);
  * 4. the IPC handlers, so the renderer never invokes a channel that is not
  *    registered yet;
- * 5. the window.
+ * 5. the close guard of spec section 10, before a window exists to close;
+ * 6. the window.
  */
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { app, BrowserWindow, ipcMain, session, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session, type WebContents } from 'electron'
 
+import { CloseGuard } from './close-guard.ts'
 import { electronShowOpenDialog } from './dialog.ts'
 import {
   applyContentSecurityPolicy,
@@ -59,7 +61,7 @@ function lockDownNavigation(contents: WebContents): void {
   })
 }
 
-function createMainWindow(): BrowserWindow {
+function createMainWindow(guard: CloseGuard): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -85,6 +87,14 @@ function createMainWindow(): BrowserWindow {
     window.show()
   })
 
+  // Spec section 10: the close is stopped and the user asked while the window
+  // is still there. Attaching only to `before-quit` would ask after
+  // `window-all-closed` has already destroyed it, leaving "keep running" with
+  // no window to go back to.
+  window.on('close', (event) => {
+    guard.handleBeforeQuit(event)
+  })
+
   if (RENDERER_DEV_URL === undefined) {
     void window.loadFile(RENDERER_FILE)
   } else {
@@ -99,7 +109,7 @@ function createMainWindow(): BrowserWindow {
  * production injections: real thumbnails through `nativeImage`, the real file
  * dialog, and progress pushed to every live window.
  */
-async function createServices(): Promise<IpcServices> {
+async function createServices(): Promise<IpcServices & { readonly jobs: JobService }> {
   const layout = await ensureWorkspaceLayout(resolveWorkspaceRoot(app))
 
   // Plan decision Q13, before the window exists: a job the app died on shows as
@@ -112,21 +122,22 @@ async function createServices(): Promise<IpcServices> {
   const progress = new ProgressForwarder(() =>
     BrowserWindow.getAllWindows().map((window) => window.webContents)
   )
+  const jobs = new JobService({
+    workspace: layout,
+    materializer: new JobMaterializer({ workspace: layout, registry }),
+    preflight,
+    registry,
+    renderThumbnail: nativeImageThumbnail,
+    onProgress: (event) => {
+      progress.send(event)
+    }
+  })
 
   return {
     workspace: layout,
     registry,
     library: new Library({ workspace: layout, registry }),
-    jobs: new JobService({
-      workspace: layout,
-      materializer: new JobMaterializer({ workspace: layout, registry }),
-      preflight,
-      registry,
-      renderThumbnail: nativeImageThumbnail,
-      onProgress: (event) => {
-        progress.send(event)
-      }
-    }),
+    jobs,
     preflight,
     showOpenDialog: electronShowOpenDialog,
     logError: (channel, error) => {
@@ -148,13 +159,31 @@ void app
     // the React Fast Refresh preamble under `pnpm dev`.
     applyContentSecurityPolicy(session.defaultSession, { isPackaged: app.isPackaged })
 
-    registerIpcHandlers(ipcMain, await createServices())
+    const services = await createServices()
 
-    createMainWindow()
+    registerIpcHandlers(ipcMain, services)
+
+    // Spec section 10: closing must not silently kill a run in progress.
+    // Choosing to quit cancels every run, and each of those writes its own
+    // `result.json` with `CANCELLED` (spec section 7.4).
+    const guard = new CloseGuard({
+      jobs: services.jobs,
+      showMessageBox: async (options) =>
+        dialog.showMessageBox({ ...options, buttons: [...options.buttons] }),
+      quit: () => {
+        app.quit()
+      }
+    })
+
+    app.on('before-quit', (event) => {
+      guard.handleBeforeQuit(event)
+    })
+
+    createMainWindow(guard)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createMainWindow()
+        createMainWindow(guard)
       }
     })
   })

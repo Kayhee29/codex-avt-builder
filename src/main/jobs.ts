@@ -162,6 +162,13 @@ export class JobService {
    * stops at its next checkpoint.
    */
   readonly #cancelRequested = new Set<string>()
+  /**
+   * The `completed` promise of every run in flight (plan Task 5.6).
+   *
+   * {@link whenIdle} waits on these, so the close guard can be sure each
+   * cancelled run got as far as writing its `result.json` (spec section 7).
+   */
+  readonly #pending = new Map<string, Promise<Result>>()
 
   constructor(options: JobServiceOptions) {
     this.#layout =
@@ -217,7 +224,10 @@ export class JobService {
     const completed = this.#run(materialized, progress, startedAt).finally(() => {
       this.#active.delete(materialized.jobId)
       this.#cancelRequested.delete(materialized.jobId)
+      this.#pending.delete(materialized.jobId)
     })
+
+    this.#pending.set(materialized.jobId, completed)
 
     return { jobId: materialized.jobId, directory: materialized.directory, completed }
   }
@@ -253,6 +263,33 @@ export class JobService {
     this.#cancelRequested.add(jobId)
 
     return true
+  }
+
+  /**
+   * Cancels every run (spec section 10, plan Task 5.6).
+   *
+   * Used when the window is closing with Codex still running. Each cancelled
+   * run writes its own `result.json` with `CANCELLED`; {@link whenIdle} is how
+   * a caller waits for that. Returns the jobs that accepted the cancel.
+   */
+  cancelAll(): readonly string[] {
+    return this.running.filter((jobId) => this.cancel(jobId))
+  }
+
+  /**
+   * Resolves once no run is in flight (plan Task 5.6).
+   *
+   * A run's promise never rejects (see {@link generate}), and it is removed
+   * from the pending map by the same `finally` that resolves it, so the loop
+   * re-reads the map rather than trusting one snapshot of it.
+   */
+  async whenIdle(): Promise<void> {
+    let pending = [...this.#pending.values()]
+
+    while (pending.length > 0) {
+      await Promise.allSettled(pending)
+      pending = [...this.#pending.values()]
+    }
   }
 
   /** Recent jobs (spec section 4.6), newest first. */
