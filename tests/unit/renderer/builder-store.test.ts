@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { BuilderStateInputSchema } from '@shared/ipc-contract'
+import { BuilderStateInputSchema, DraftStateInputSchema } from '@shared/ipc-contract'
 
 import {
   AUTOSAVE_DEBOUNCE_MS,
@@ -135,13 +135,30 @@ describe('draft autosave (spec section 4.6)', () => {
     expect(useBuilderStore.getState().dirty).toBe(false)
   })
 
-  it('never sends an invalid state, because draft.save would only refuse it', async () => {
+  // Plan decision Q22: the draft that most needs saving is the half-typed one.
+  it('saves a half-typed subject, which is what Q22 fixed', async () => {
     useBuilderStore.getState().setSubjectField('name', 'Nguyễn Văn A')
 
     await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS * 2)
 
-    expect(fake.channels['draft.save']).not.toHaveBeenCalled()
-    expect(useBuilderStore.getState().dirty).toBe(true)
+    const request = fake.channels['draft.save'].mock.calls[0]?.[0] as { state: unknown }
+
+    expect(fake.channels['draft.save']).toHaveBeenCalledTimes(1)
+    expect(DraftStateInputSchema.safeParse(request.state).success).toBe(true)
+    // It is stored and it is still not generatable: `valid` is a
+    // `BuilderStateSchema` question and stays false (spec section 12).
+    expect(useBuilderStore.getState().dirty).toBe(false)
+    expect(useBuilderStore.getState().valid).toBe(false)
+    expect(status()).toBe('invalid')
+  })
+
+  it('saves a draft whose aspect ratio the user has cleared', async () => {
+    useBuilderStore.getState().adoptState(makeValidState())
+    useBuilderStore.getState().setOutput('aspectRatio', '')
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS * 2)
+
+    expect(fake.channels['draft.save']).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the edits dirty and records the code when the save is refused', async () => {

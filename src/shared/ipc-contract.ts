@@ -32,6 +32,7 @@ import {
   BuilderReferenceSchema,
   BuilderStateSchema,
   CompositionDefaultsSchema,
+  DraftStateSchema,
   IsoTimestampSchema,
   JobIdSchema,
   JobPacketSchema,
@@ -118,6 +119,20 @@ export const BuilderStateInputSchema = BuilderStateSchema.extend({
 })
 
 export type BuilderStateInput = z.infer<typeof BuilderStateInputSchema>
+
+/**
+ * The same thing for the autosave, with the free-text fields allowed to be
+ * empty (plan decision Q22).
+ *
+ * `draft.save` takes this and `jobs.generate` takes {@link BuilderStateInput},
+ * which is the whole point of the pair: the builder keeps a half-typed subject
+ * safe on disk (spec section 4.6) and still refuses to generate from it.
+ */
+export const DraftStateInputSchema = DraftStateSchema.extend({
+  references: z.array(BuilderReferenceInputSchema).max(MAX_REFERENCES)
+})
+
+export type DraftStateInput = z.infer<typeof DraftStateInputSchema>
 
 /**
  * A preset as the renderer asks for it to be saved. The style image is named by
@@ -264,14 +279,19 @@ export const IPC_CHANNELS = {
     kind: 'invoke',
     request: NoRequestSchema,
     response: z.strictObject({
-      draft: z.strictObject({ state: BuilderStateSchema, savedAt: IsoTimestampSchema }).nullable()
+      draft: z.strictObject({ state: DraftStateSchema, savedAt: IsoTimestampSchema }).nullable()
     })
   },
 
-  /** Autosaves the builder state (spec section 4.6). */
+  /**
+   * Autosaves the builder state (spec section 4.6).
+   *
+   * A draft may be half typed (plan decision Q22), so this is the one channel
+   * that takes the relaxed {@link DraftStateInputSchema}.
+   */
   'draft.save': {
     kind: 'invoke',
-    request: z.strictObject({ state: BuilderStateInputSchema }),
+    request: z.strictObject({ state: DraftStateInputSchema }),
     response: z.strictObject({ savedAt: IsoTimestampSchema })
   },
 

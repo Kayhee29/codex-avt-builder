@@ -11,6 +11,7 @@
  * `pnpm typecheck` rather than reaching a user as raw English.
  */
 import type { IpcErrorCode } from '@shared/ipc-contract'
+import type { PresetField } from '@shared/preset-merge'
 import type { RunState } from '@shared/progress'
 import type { ReferenceRole } from '@shared/reference-roles'
 import type { ImageFormat } from '@shared/schemas'
@@ -92,6 +93,29 @@ export const IPC_ERROR_TEXT: Record<IpcErrorCode, string> = {
   IO_ERROR: 'Không đọc hoặc ghi được dữ liệu trên đĩa.'
 }
 
+/**
+ * One Vietnamese label per field a preset may change (spec section 4.4).
+ *
+ * Typed `Record<PresetField, string>`, so a field added to `PRESET_FIELDS` in
+ * `src/shared/preset-merge.ts` fails `pnpm typecheck` instead of appearing in
+ * the apply dialog as a raw identifier.
+ */
+export const PRESET_FIELD_TEXT: Record<PresetField, string> = {
+  'output.aspectRatio': 'Tỉ lệ khung hình',
+  'output.background': 'Nền',
+  'output.format': 'Định dạng file',
+  'subject.pose': 'Pose',
+  'subject.expression': 'Biểu cảm',
+  'subject.notes': 'Ghi chú bố cục',
+  negativeConstraints: 'Ràng buộc loại trừ',
+  'references.style': 'Ảnh phong cách',
+  'references.style.note': 'Ghi chú ảnh phong cách',
+  'references.outfit.note': 'Ghi chú ảnh trang phục',
+  'references.equipment.note': 'Ghi chú ảnh trang bị',
+  'references.extra.note': 'Ghi chú ảnh bổ sung',
+  'source.preset': 'Preset đang dùng'
+}
+
 /** Everything else, grouped by the part of the UI that shows it. */
 export const vi = {
   app: {
@@ -167,6 +191,58 @@ export const vi = {
   jobs: {
     listFailed: 'Không đọc được danh sách job.',
     empty: 'Chưa có job nào.'
+  },
+
+  common: {
+    cancel: 'Hủy',
+    emptyValue: '(trống)'
+  },
+
+  library: {
+    listFailed: 'Không đọc được preset và anchor đã lưu.',
+    saveFailed: 'Không lưu được.',
+    deleteFailed: 'Không xóa được.',
+
+    presetsEmpty: 'Chưa có preset nào.',
+    presetName: 'Tên preset',
+    presetNamePlaceholder: 'Ví dụ: Chibi master',
+    savePreset: 'Lưu preset từ draft',
+    applyPreset: 'Áp dụng',
+    deletePreset: 'Xóa',
+
+    applyTitle: 'Áp preset lên draft hiện tại',
+    applyMessage:
+      'Những trường sau sẽ thay đổi. Ảnh nhận diện và ghi chú của nó không bị đụng tới.',
+    applyEmpty: 'Preset này không làm thay đổi trường nào.',
+    applyConfirm: 'Áp preset',
+    applyColumnField: 'Trường',
+    applyColumnFrom: 'Hiện tại',
+    applyColumnTo: 'Sau khi áp',
+
+    deleteTitle: 'Xóa preset',
+    deleteMessage: 'Preset và ảnh phong cách đã lưu kèm sẽ bị xóa khỏi workspace.',
+    deleteConfirm: 'Xóa preset',
+
+    anchorsEmpty: 'Chưa có anchor nào.',
+    anchorNew: 'Anchor mới',
+    anchorName: 'Tên anchor',
+    anchorNamePlaceholder: 'Ví dụ: Nguyễn Văn A',
+    saveAnchor: 'Lưu anchor từ draft',
+    anchorTarget: 'Lưu vào',
+    loadAnchor: 'Tạo draft mới',
+    immutableTraits: 'Đặc điểm cố định',
+    mutableTraits: 'Đặc điểm có thể đổi',
+    traitsHint: 'Mỗi dòng một đặc điểm.',
+    approvedOutput: 'Ảnh đã duyệt',
+    approvedOutputNone: 'Không đính kèm',
+    approvedOutputOption: 'ảnh',
+    needIdentity: 'Cần có ảnh nhận diện trong draft trước khi lưu anchor.',
+    mutableHint: 'Trang phục, trang bị, pose và biểu cảm luôn để trống cho draft mới.',
+
+    loadAnchorTitle: 'Tạo draft mới từ anchor',
+    loadAnchorMessage:
+      'Draft hiện tại sẽ bị thay bằng một draft mới dựng từ anchor này. Nội dung đang nhập sẽ mất.',
+    loadAnchorConfirm: 'Tạo draft mới'
   }
 } as const
 

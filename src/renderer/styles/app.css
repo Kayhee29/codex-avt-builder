@@ -379,3 +379,118 @@ button:disabled {
   cursor: default;
   color: var(--text-muted);
 }
+
+/* --- preset and anchor panels (plan Task 5.4) --- */
+
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.library__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.library__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.library__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library__actions {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.library__empty,
+.library__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.library__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.76rem;
+}
+
+/* --- the confirm dialog (plan Task 5.4) --- */
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(22 24 29 / 45%);
+  z-index: 10;
+}
+
+.dialog__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.dialog__message,
+.dialog__empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.dialog__changes {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.dialog__changes th,
+.dialog__changes td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dialog__changes thead th {
+  background: var(--surface-sunken);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

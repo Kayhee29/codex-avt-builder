@@ -12,7 +12,8 @@ import {
   type LoadedDraft
 } from '../../src/main/library.ts'
 import { ReferenceRegistry } from '../../src/main/reference-registry.ts'
-import type { AnchorInput, BuilderStateInput, PresetInput } from '../../src/shared/ipc-contract.ts'
+import type { AnchorInput, DraftStateInput, PresetInput } from '../../src/shared/ipc-contract.ts'
+import { sortReferences } from '../../src/shared/reference-roles.ts'
 import {
   AnchorSchema,
   BuilderStateSchema,
@@ -71,7 +72,7 @@ async function reference(path: string, role: BuilderReference['role']): Promise<
 }
 
 /** A builder state as the renderer sends it: no displayPath, no thumbnail. */
-function stateInput(references: BuilderReference[]): BuilderStateInput {
+function stateInput(references: BuilderReference[]): DraftStateInput {
   return {
     schemaVersion: SCHEMA_VERSION,
     subject: { name: 'Richard Nixon', description: 'Chibi historical character portrait' },
@@ -224,6 +225,47 @@ describe('draft round trip', () => {
     await writeFile(join(workspace.drafts, 'current.json'), '{ not json', 'utf8')
 
     await expect(library.loadDraft()).rejects.toBeInstanceOf(LibraryError)
+  })
+
+  /**
+   * Plan decision Q22. Spec section 4.6 saves the draft as the user edits, so
+   * the state a subject is halfway through being typed into has to survive the
+   * window closing. `BuilderStateSchema` refuses it and `DraftStateSchema`
+   * does not, which is the whole difference between the two.
+   */
+  it('stores a half-typed subject and reads it back (plan decision Q22)', async () => {
+    const halfTyped = {
+      ...stateInput([]),
+      subject: { name: 'Ngu', description: '' },
+      output: { ...stateInput([]).output, aspectRatio: '' }
+    }
+
+    expect(BuilderStateSchema.safeParse(halfTyped).success).toBe(false)
+
+    await library.saveDraft(halfTyped)
+
+    const loaded = await library.loadDraft()
+
+    expect(loaded?.state.subject).toEqual({ name: 'Ngu', description: '' })
+    expect(loaded?.state.output.aspectRatio).toBe('')
+  })
+
+  /**
+   * Plan decision Q23: a `current.json` edited by hand can name one role twice,
+   * which `sortReferences` would throw on where the renderer builds the prompt.
+   * The extras are dropped instead.
+   */
+  it('drops a repeated reference role when loading (plan decision Q23)', async () => {
+    const style = await reference(sources.style, 'style')
+    const second = await reference(sources.outfit, 'style')
+
+    await library.saveDraft(stateInput([style, second]))
+
+    const loaded = await library.loadDraft()
+
+    expect(loaded?.state.references).toHaveLength(1)
+    expect(loaded?.state.references[0]?.referenceId).toBe(style.referenceId)
+    expect(() => sortReferences(loaded?.state.references ?? [])).not.toThrow()
   })
 })
 

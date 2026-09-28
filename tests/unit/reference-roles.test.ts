@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   assignReferenceLabels,
+  dedupeReferenceRoles,
   DuplicateReferenceRoleError,
   isReferenceRole,
   labelFor,
@@ -162,5 +163,44 @@ describe('assignReferenceLabels', () => {
 
   it('returns an empty list for no references', () => {
     expect(assignReferenceLabels([])).toEqual([])
+  })
+})
+
+/**
+ * Plan decision Q23. `BuilderStateSchema` cannot express "one reference per
+ * role" — a zod refinement would disappear from the exported JSON Schema — so a
+ * hand-edited `workspace/drafts/current.json` can name a role twice, and
+ * `sortReferences` would throw where the prompt preview is built.
+ */
+describe('dedupeReferenceRoles (plan decision Q23)', () => {
+  it('keeps the first reference of a repeated role and drops the rest', () => {
+    const deduped = dedupeReferenceRoles([
+      ref('style', 'first.png'),
+      ref('identity'),
+      ref('style', 'second.png')
+    ])
+
+    expect(deduped.map((reference) => reference.file)).toEqual(['first.png', 'identity.png'])
+  })
+
+  it('makes a list sortReferences accepts', () => {
+    const duplicated = [ref('style', 'a.png'), ref('style', 'b.png')]
+
+    expect(() => sortReferences(duplicated)).toThrow(DuplicateReferenceRoleError)
+    expect(() => sortReferences(dedupeReferenceRoles(duplicated))).not.toThrow()
+  })
+
+  it('leaves a list without duplicates exactly as it was, in order', () => {
+    const clean = [ref('identity'), ref('style')]
+
+    expect(dedupeReferenceRoles(clean)).toEqual(clean)
+  })
+
+  it('does not mutate the input', () => {
+    const input = [ref('style', 'a.png'), ref('style', 'b.png')]
+
+    dedupeReferenceRoles(input)
+
+    expect(input).toHaveLength(2)
   })
 })

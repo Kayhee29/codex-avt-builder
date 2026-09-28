@@ -102,6 +102,31 @@ export function sortReferences<T extends HasReferenceRole>(references: readonly 
 }
 
 /**
+ * Keeps the first reference of each role and drops the rest
+ * (plan decision Q23).
+ *
+ * Each role holds at most one reference (spec section 4.2), but that rule is
+ * structural and a zod refinement for it would vanish from the exported JSON
+ * Schema, so `BuilderStateSchema` does not encode it. The builder store and the
+ * job materializer keep the rule by construction; a `current.json` edited by
+ * hand does not, and without this it would reach {@link sortReferences} and
+ * throw where the prompt preview is built. The input array is not mutated.
+ */
+export function dedupeReferenceRoles<T extends HasReferenceRole>(references: readonly T[]): T[] {
+  const seen = new Set<ReferenceRole>()
+
+  return references.filter((reference) => {
+    if (seen.has(reference.role)) {
+      return false
+    }
+
+    seen.add(reference.role)
+
+    return true
+  })
+}
+
+/**
  * Sort by role, then hand out labels **sequentially over the references that
  * are actually present** (plan decision Q14).
  *

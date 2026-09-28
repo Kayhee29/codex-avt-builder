@@ -15,12 +15,21 @@ import { vi, type Mock } from 'vitest'
 import {
   IPC_CHANNEL_NAMES,
   IPC_CHANNELS,
+  type AnchorEntry,
   type IpcChannelName,
-  type IpcResult
+  type IpcResult,
+  type JobSummary,
+  type PresetEntry
 } from '@shared/ipc-contract'
 import type { ProgressEvent } from '@shared/progress'
 import type { ReferenceRole } from '@shared/reference-roles'
-import { SCHEMA_VERSION, type BuilderReference, type BuilderState } from '@shared/schemas'
+import {
+  SCHEMA_VERSION,
+  type Anchor,
+  type BuilderReference,
+  type BuilderState,
+  type Preset
+} from '@shared/schemas'
 import { DEFAULT_OUTPUT_REQUEST } from '@shared/anchor'
 
 import { STUDIO_GLOBAL } from '../../../src/renderer/bridge.ts'
@@ -152,6 +161,81 @@ export function makeValidState(overrides: Partial<BuilderState> = {}): BuilderSt
     output: { ...DEFAULT_OUTPUT_REQUEST },
     negativeConstraints: [],
     source: { preset: null, anchor: null },
+    ...overrides
+  }
+}
+
+/**
+ * A preset entry as `library.listPresets` answers with one: the metadata plus
+ * the handle for the style image main copied next to it (plan decision Q18).
+ */
+export function makePresetEntry(
+  overrides: Partial<Preset> = {},
+  styleReference: BuilderReference | null = null
+): PresetEntry {
+  return {
+    preset: {
+      schemaVersion: SCHEMA_VERSION,
+      id: 'chibi-master-v1',
+      name: 'Chibi master',
+      createdAt: ISO_SAVED_AT,
+      updatedAt: ISO_SAVED_AT,
+      styleReference: null,
+      roleNotes: {},
+      promptConventions: [],
+      negativeConstraints: [],
+      composition: {},
+      output: { aspectRatio: '3:4', background: 'giấy ấm', format: 'png' },
+      ...overrides
+    },
+    styleReference
+  }
+}
+
+/** One anchor version with the handle for its identity image (decision Q18). */
+export function makeAnchorEntry(
+  overrides: Partial<Anchor> = {},
+  identityReference: BuilderReference | null = makeReference('identity')
+): AnchorEntry {
+  return {
+    anchor: {
+      schemaVersion: SCHEMA_VERSION,
+      id: 'nguyen-van-a',
+      name: 'Nguyễn Văn A',
+      version: 1,
+      createdAt: ISO_SAVED_AT,
+      identityReference: {
+        path: 'identity.png',
+        originalName: 'identity.png',
+        mimeType: 'image/png',
+        sizeBytes: 1024,
+        sha256: 'a'.repeat(64)
+      },
+      approvedOutput: null,
+      identityDescription: 'Nam, ngoài 50 tuổi, tóc bạc hai bên',
+      immutableTraits: [],
+      mutableTraits: [],
+      sourceJobId: null,
+      ...overrides
+    },
+    identityReference
+  }
+}
+
+/** A recent-jobs row with everything but the fields a test cares about filled. */
+export function makeJobSummary(overrides: Partial<JobSummary> = {}): JobSummary {
+  return {
+    jobId: '2026-09-28-nguyen-van-a-001',
+    subjectName: 'Nguyễn Văn A',
+    state: 'succeeded',
+    createdAt: ISO_SAVED_AT,
+    completedAt: ISO_SAVED_AT,
+    preset: null,
+    anchor: null,
+    outputCount: 1,
+    errorCode: null,
+    warnings: [],
+    thumbnailDataUrl: null,
     ...overrides
   }
 }

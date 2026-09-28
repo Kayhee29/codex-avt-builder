@@ -10,6 +10,7 @@ import {
   CODEX_ERROR_CODES,
   CodexResultSchema,
   DraftSchema,
+  DraftStateSchema,
   JobPacketSchema,
   PresetSchema,
   RESULT_ERROR_CODES,
@@ -432,5 +433,52 @@ describe('builder state', () => {
     const tooMany = { ...BUILDER_STATE, references: Array.from({ length: 6 }, () => first) }
 
     expect(BuilderStateSchema.safeParse(tooMany).success).toBe(false)
+  })
+})
+
+/**
+ * Plan decision Q22. Spec section 4.6 autosaves the builder as the user edits,
+ * so the draft schema has to accept the halfway states that editing goes
+ * through; `BuilderStateSchema` stays strict, because `jobs.generate` and the
+ * materializer must still refuse them (spec section 5.2).
+ */
+describe('a draft may be half typed (plan decision Q22)', () => {
+  /** A subject with a name being typed and nothing else filled in yet. */
+  const HALF_TYPED = {
+    ...BUILDER_STATE,
+    subject: { name: 'Ngu', description: '' },
+    output: { ...BUILDER_STATE.output, aspectRatio: '' }
+  }
+
+  it('accepts an empty description, which BuilderStateSchema refuses', () => {
+    expect(DraftStateSchema.safeParse(HALF_TYPED).success).toBe(true)
+    expect(BuilderStateSchema.safeParse(HALF_TYPED).success).toBe(false)
+  })
+
+  it('accepts an empty subject name', () => {
+    const nameless = { ...HALF_TYPED, subject: { name: '', description: '' } }
+
+    expect(DraftStateSchema.safeParse(nameless).success).toBe(true)
+  })
+
+  it('accepts an aspect ratio the user has cleared while retyping it', () => {
+    expect(DraftStateSchema.safeParse(HALF_TYPED).success).toBe(true)
+  })
+
+  it('is still a strict object, so an unknown field is refused', () => {
+    expect(DraftStateSchema.safeParse({ ...HALF_TYPED, status: 'dirty' }).success).toBe(false)
+  })
+
+  it('keeps every rule that is not about free text', () => {
+    const zeroCount = { ...HALF_TYPED, output: { ...HALF_TYPED.output, count: 0 } }
+    const [first, ...rest] = BUILDER_STATE.references
+    const leaky = { ...HALF_TYPED, references: [{ ...first, path: 'C:\\x.png' }, ...rest] }
+
+    expect(DraftStateSchema.safeParse(zeroCount).success).toBe(false)
+    expect(DraftStateSchema.safeParse(leaky).success).toBe(false)
+  })
+
+  it('lets a half-typed draft be stored, which is the bug Q22 fixes', () => {
+    expect(DraftSchema.safeParse({ ...DRAFT, state: HALF_TYPED }).success).toBe(true)
   })
 })

@@ -19,7 +19,12 @@
  */
 import { create, type StoreApi, type UseBoundStore } from 'zustand'
 
-import type { BuilderReferenceInput, BuilderStateInput, IpcErrorCode } from '@shared/ipc-contract'
+import type {
+  BuilderReferenceInput,
+  BuilderStateInput,
+  DraftStateInput,
+  IpcErrorCode
+} from '@shared/ipc-contract'
 import {
   buildPrompt,
   orderReferences,
@@ -30,8 +35,10 @@ import {
 import type { ReferenceRole } from '@shared/reference-roles'
 import {
   BuilderStateSchema,
+  DraftStateSchema,
   type BuilderReference,
   type BuilderState,
+  type DraftState,
   type OutputRequest
 } from '@shared/schemas'
 import { createEmptyBuilderState } from '@shared/anchor'
@@ -101,8 +108,14 @@ export interface BuilderStore {
 
   /** Reads `workspace/drafts/current.json` and adopts it (spec section 4.6). */
   loadDraft: () => Promise<void>
-  /** Replaces the whole state, e.g. after applying a preset (plan Task 5.4). */
-  adoptState: (state: BuilderState, savedAt?: string | null) => void
+  /**
+   * Replaces the whole state, e.g. after applying a preset (plan Task 5.4).
+   *
+   * It takes a `DraftState` because a stored draft may be half typed (plan
+   * decision Q22); the two shapes are the same fields, and whether this one
+   * satisfies `BuilderStateSchema` is what `valid` then records.
+   */
+  adoptState: (state: DraftState, savedAt?: string | null) => void
   setSubjectField: (field: SubjectTextField, value: string) => void
   setOutput: <K extends keyof OutputRequest>(field: K, value: OutputRequest[K]) => void
   setNegativeConstraintsText: (text: string) => void
@@ -256,10 +269,13 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
     /**
      * One `draft.save`.
      *
-     * An invalid state is not sent: `draft.save` takes a `BuilderState`, and
-     * `SubjectSchema` requires a name and a description, so a half-typed
-     * subject would only earn an `INVALID_REQUEST`. The edits stay `dirty`
-     * until the state becomes valid, and the next edit schedules another save.
+     * A half-typed state is saved (plan decision Q22). Spec section 4.6 stores
+     * the draft as the user edits, so `draft.save` takes a `DraftState`, whose
+     * free-text fields may be empty; `valid` stays a `BuilderStateSchema`
+     * question and keeps deciding the status word and the Generate button.
+     *
+     * The only state not sent is one `DraftStateSchema` itself refuses, which
+     * nothing the UI can do produces — it would only earn an `INVALID_REQUEST`.
      */
     async function save(): Promise<void> {
       if (get().saving) {
@@ -272,13 +288,16 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
 
       const snapshot = get().state
 
-      if (!get().valid) {
+      if (!DraftStateSchema.safeParse(snapshot).success) {
         return
       }
 
       set({ saving: true, saveErrorCode: null })
 
-      const answer = await bridge()['draft.save']({ state: toBuilderStateInput(snapshot) })
+      // Typed as the draft input on purpose: the two shapes are the same
+      // fields and only the runtime rules differ (plan decision Q22).
+      const state: DraftStateInput = toBuilderStateInput(snapshot)
+      const answer = await bridge()['draft.save']({ state })
 
       if (!answer.ok) {
         set({ saving: false, saveErrorCode: answer.code })
@@ -372,7 +391,7 @@ export function createBuilderStore(): UseBoundStore<StoreApi<BuilderStore>> {
         }
       },
 
-      adoptState: (state: BuilderState, savedAt: string | null = null): void => {
+      adoptState: (state: DraftState, savedAt: string | null = null): void => {
         cancelScheduledSave()
         set({
           state,
@@ -542,4 +561,25 @@ export function selectMissingRoles(store: BuilderStore): ReferenceRole[] {
  */
 export function selectCanGenerate(store: BuilderStore): boolean {
   return store.valid && selectMissingRoles(store).length === 0
+}
+
+/**
+ * Whether replacing the state would throw away something the user entered.
+ *
+ * Plan Task 5.4 asks the anchor panel to warn "if the draft is dirty" before it
+ * starts a new draft. `dirty` alone would stop warning 800 ms after the last
+ * keystroke — exactly when the draft is worth the most — so the question asked
+ * is the wider one: does the builder hold anything at all? It returns a
+ * boolean, so subscribing to it is safe.
+ */
+export function selectHasContent(store: BuilderStore): boolean {
+  const { subject, references, negativeConstraints } = store.state
+
+  return (
+    references.length > 0 ||
+    negativeConstraints.length > 0 ||
+    [subject.name, subject.description, subject.pose, subject.expression, subject.notes].some(
+      (value) => (value ?? '').trim() !== ''
+    )
+  )
 }

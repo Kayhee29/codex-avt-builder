@@ -39,8 +39,9 @@ import { basename, join } from 'node:path'
 
 import { nextAnchorVersion } from '../shared/anchor.ts'
 import type { AnchorEntry, AnchorInput, PresetEntry, PresetInput } from '../shared/ipc-contract.ts'
-import { type BuilderStateInput } from '../shared/ipc-contract.ts'
+import { type DraftStateInput } from '../shared/ipc-contract.ts'
 import { slugifySubject } from '../shared/job-id.ts'
+import { dedupeReferenceRoles } from '../shared/reference-roles.ts'
 import {
   AnchorSchema,
   DraftSchema,
@@ -50,8 +51,8 @@ import {
   SCHEMA_VERSION,
   type Anchor,
   type BuilderReference,
-  type BuilderState,
   type Draft,
+  type DraftState,
   type ImageFormat,
   type ImageMimeType,
   type Preset
@@ -100,7 +101,8 @@ export interface LibraryOptions {
 
 /** A loaded draft, in the shape `draft.load` answers with. */
 export interface LoadedDraft {
-  readonly state: BuilderState
+  /** A draft may be half typed, so this is a `DraftState` (decision Q22). */
+  readonly state: DraftState
   readonly savedAt: string
 }
 
@@ -132,8 +134,12 @@ export class Library {
    * renderer is not allowed to send back (plan decision Q3); both are put back
    * from the registry, together with the absolute path of every reference, so
    * the next `draft.load` can register them again.
+   *
+   * The state may be half typed (plan decision Q22): spec section 4.6 saves as
+   * the user edits, and a subject with a name and no description yet is exactly
+   * what has to survive the window closing.
    */
-  async saveDraft(state: BuilderStateInput): Promise<{ savedAt: string }> {
+  async saveDraft(state: DraftStateInput): Promise<{ savedAt: string }> {
     const savedAt = this.#timestamp()
     const references: BuilderReference[] = []
     const referencePaths: Record<string, string> = {}
@@ -176,6 +182,11 @@ export class Library {
    * The stored measurements are kept as they were; a reference is re-measured
    * when a job is materialized (spec section 5.2), which is the only place the
    * numbers have to be current.
+   *
+   * A file that names the same role twice has its extra references dropped
+   * rather than passed on (plan decision Q23): the schema cannot express "one
+   * reference per role", and two handles for one role would throw where the
+   * renderer builds the prompt preview.
    */
   async loadDraft(): Promise<LoadedDraft | null> {
     const path = join(this.#layout.drafts, DRAFT_FILE_NAME)
@@ -194,7 +205,7 @@ export class Library {
     const draft = parsed.data
     const references: BuilderReference[] = []
 
-    for (const reference of draft.state.references) {
+    for (const reference of dedupeReferenceRoles(draft.state.references)) {
       const storedPath = draft.referencePaths[reference.referenceId]
 
       if (storedPath === undefined) {

@@ -384,6 +384,51 @@ export const BuilderStateSchema = z.strictObject({
 })
 
 /**
+ * The subject of a draft (plan decision Q22).
+ *
+ * `name` and `description` may be empty here and are required by
+ * {@link SubjectSchema}. Spec section 4.6 autosaves the builder as the user
+ * edits, so the moment after the first keystroke — a name and nothing else —
+ * has to be storable; with the strict subject it was not, and closing the app
+ * mid-sentence threw the work away.
+ */
+export const DraftSubjectSchema = SubjectSchema.extend({
+  name: z.string(),
+  description: z.string()
+})
+
+/**
+ * The output request of a draft (plan decision Q22).
+ *
+ * `aspectRatio` is a free-text box the user can clear while retyping it, which
+ * must not make the draft unsavable. `count` keeps its minimum: it is a number
+ * input, not free text, and the form already reports an unparseable box as an
+ * invalid state rather than as an empty one.
+ */
+export const DraftOutputRequestSchema = OutputRequestSchema.extend({
+  aspectRatio: z.string()
+})
+
+/**
+ * A builder state as it is autosaved, with every free-text field allowed to be
+ * empty (plan decision Q22).
+ *
+ * This is deliberately looser than {@link BuilderStateSchema}, which stays
+ * strict: `jobs.generate` and the job materializer still refuse an incomplete
+ * state (spec sections 5.2 and 10), and the builder still reports one as
+ * `invalid` (spec section 12). The two schemas infer the same TypeScript type,
+ * because a minimum length is a runtime rule and not a type.
+ *
+ * `negativeConstraints` keeps its non-empty entries: the textarea is parsed
+ * line by line with blank lines dropped, so an empty entry cannot be produced
+ * by editing, only by hand-editing the file.
+ */
+export const DraftStateSchema = BuilderStateSchema.extend({
+  subject: DraftSubjectSchema,
+  output: DraftOutputRequestSchema
+})
+
+/**
  * `workspace/drafts/current.json`. Written by main, so unlike `BuilderState`
  * it may hold absolute paths; on `draft.load` main re-registers them and marks
  * anything missing (plan decision Q3, spec section 4.2).
@@ -391,7 +436,7 @@ export const BuilderStateSchema = z.strictObject({
 export const DraftSchema = z.strictObject({
   schemaVersion: z.literal(SCHEMA_VERSION),
   savedAt: IsoTimestampSchema,
-  state: BuilderStateSchema,
+  state: DraftStateSchema,
   referencePaths: z.record(z.uuid(), z.string().min(1))
 })
 
@@ -434,5 +479,8 @@ export type AnchorApprovedOutput = z.infer<typeof AnchorApprovedOutputSchema>
 export type Anchor = z.infer<typeof AnchorSchema>
 export type BuilderReference = z.infer<typeof BuilderReferenceSchema>
 export type BuilderState = z.infer<typeof BuilderStateSchema>
+export type DraftSubject = z.infer<typeof DraftSubjectSchema>
+export type DraftOutputRequest = z.infer<typeof DraftOutputRequestSchema>
+export type DraftState = z.infer<typeof DraftStateSchema>
 export type Draft = z.infer<typeof DraftSchema>
 export type Settings = z.infer<typeof SettingsSchema>
