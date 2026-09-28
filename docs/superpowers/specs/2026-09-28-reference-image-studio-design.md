@@ -4,7 +4,7 @@
 
 **Ngày:** 2026-09-28
 
-**Implementation plan:** Chưa viết
+**Implementation plan:** [2026-09-28-reference-image-studio-implementation.md](../plans/2026-09-28-reference-image-studio-implementation.md)
 
 ## 1. Mục tiêu
 
@@ -61,7 +61,7 @@ Electron main process
        Codex CLI
           ├─ đọc job.json + prompt.md + inputs/
           ├─ dùng capability sinh ảnh của Codex
-          └─ ghi output + result.json
+          └─ ghi outputs/ + codex-result.json
 ```
 
 Renderer không được truy cập trực tiếp Node.js, filesystem hoặc child process. `contextIsolation` phải bật; `nodeIntegration` phải tắt. Preload chỉ expose các IPC command nằm trong allowlist.
@@ -218,49 +218,129 @@ Việc copy reference vào job giúp một run luôn reproducible dù file gốc
 
 ### 5.3 Khởi chạy Codex
 
-Main process sử dụng `child_process.spawn` với argument array và `shell: false`. Không nối chuỗi shell từ dữ liệu người dùng.
+#### Yêu cầu phiên bản và preflight
 
-Command contract:
+Luồng Generate phụ thuộc vào tool `image_gen` có sẵn trong Codex CLI. Tool này chỉ có ở các bản Codex CLI phát hành từ tháng 3/2026 (khoảng 0.117 trở lên); các bản cũ hơn chỉ có `apply_patch`, `local_shell`, `web_search` và `view_image`, không thể sinh ảnh. Phiên bản tối thiểu được chốt trong một hằng số duy nhất `CODEX_MIN_VERSION`, giá trị ban đầu là `0.158.0` (bản mới nhất tại thời điểm viết spec).
+
+Trước mỗi run, main process chạy preflight theo thứ tự và dừng ngay ở bước lỗi đầu tiên:
+
+| Bước | Lệnh | Điều kiện đạt | Mã lỗi nếu không đạt |
+|---|---|---|---|
+| Resolve executable | xem bên dưới | tìm được file thực thi thật | `CODEX_NOT_FOUND` |
+| Phiên bản | `codex --version` | semver lớn hơn hoặc bằng `CODEX_MIN_VERSION` | `CODEX_VERSION_UNSUPPORTED` |
+| Đăng nhập | `codex login status` | exit code 0 | `CODEX_NOT_AUTHENTICATED` |
+
+Preflight không gọi `codex exec` và không tiêu tốn generation. Kết quả preflight được cache trong phiên app và hiển thị trên UI. `codex doctor` chỉ dùng thủ công khi cần chẩn đoán.
+
+#### Resolve executable
+
+Main process không spawn tên `codex` trần. Trên Windows, `codex` trong `PATH` là shim `codex.cmd` do npm tạo; shim này gọi `node` rồi mới tới binary thật `codex-x86_64-pc-windows-msvc.exe`. `child_process.spawn` với `shell: false` không resolve được file `.cmd` và sẽ lỗi `ENOENT`. Thứ tự resolve:
+
+1. đường dẫn do người dùng cấu hình trong app settings, nếu có;
+2. binary thật trong package npm global `@openai/codex` (thư mục `bin/` hoặc package theo platform);
+3. `codex` trong `PATH`, chỉ khi đó là file thực thi thật.
+
+Trên Windows, file resolve được phải có đuôi `.exe`; `.cmd`, `.bat` và `.ps1` bị từ chối. Đường dẫn đã resolve được ghi vào `events.jsonl` để chẩn đoán. Không bao giờ bật `shell: true` để đi vòng.
+
+#### Command contract
+
+Main process dùng `child_process.spawn` với argument array, `shell: false` và `cwd` là job directory. Không nối chuỗi shell từ dữ liệu người dùng.
 
 ```text
-codex exec --json --full-auto <fixed orchestration instruction>
+<codex-executable> exec
+  --json
+  --sandbox workspace-write
+  --skip-git-repo-check
+  -C <đường dẫn tuyệt đối của workspace/jobs/<job-id>>
+  -i <đường dẫn tuyệt đối của inputs/<role>.<ext>>   (lặp lại cho từng reference, theo thứ tự role)
+  --output-last-message <đường dẫn tuyệt đối của last-message.txt trong job directory>
+  <fixed orchestration instruction>
 ```
 
-Working directory là thư mục project, còn orchestration instruction chỉ tham chiếu tới job ID đã được main process kiểm tra. Nội dung subject hoặc prompt của người dùng không được chèn vào shell command.
+Quy tắc:
 
-`--json` được dùng để nhận stream JSONL có cấu trúc. `--full-auto` chỉ được bật sau hành động Generate rõ ràng của người dùng vì run cần ghi output và result metadata. Tài liệu OpenAI mô tả `codex exec` là chế độ phù hợp cho automation, `--json` xuất event JSONL và `--full-auto` cho phép agent thực hiện thay đổi file trong sandbox đã cấu hình.
+- **Working directory là job directory**, không phải thư mục project. Sandbox `workspace-write` chỉ cho phép ghi trong working directory, nên Codex không thể sửa `src/`, preset, anchor hay job khác. Codex vẫn đọc được `$CODEX_HOME/generated_images/`, nơi `image_gen` lưu ảnh mặc định, để copy về `outputs/`.
+- **Reference được đính kèm bằng `-i`** theo đúng thứ tự `style`, `identity`, `outfit`, `equipment`, `extra`, trùng với nhãn Image A, Image B… trong `prompt.md`. Đường dẫn `-i` do main process sinh từ job packet, không lấy từ renderer. Skill `imagegen` của Codex chỉ dùng được ảnh đã có trong context, nên đây là cách chắc chắn để reference được nhìn thấy.
+- **Không dùng `--full-auto`.** Tài liệu Codex hiện tại đánh dấu flag này là deprecated và khuyên dùng `--sandbox workspace-write` tường minh. Không bao giờ dùng `--dangerously-bypass-approvals-and-sandbox` hay `--sandbox danger-full-access`, kể cả khi sandbox lỗi.
+- **Không bật network cho sandbox.** Main không truyền `-c sandbox_workspace_write.network_access=true`. `image_gen` là tool phía server của model nên không cần network từ sandbox; việc chặn network ngăn Codex tự viết script gọi API.
+- **Môi trường child process tối thiểu**: chỉ `PATH`, thư mục home (`HOME` hoặc `USERPROFILE`), `CODEX_HOME` nếu người dùng cấu hình, và các biến hệ thống cần để chạy binary. `OPENAI_API_KEY` và các biến bí mật khác không được truyền vào; xác thực hoàn toàn do login của Codex quản lý.
+- **Cancel** phải kết thúc cả cây process (trên Windows dùng `taskkill /T /F` với PID của child, trên macOS và Linux gửi tín hiệu tới process group), vì Codex có thể sinh process con cho sandbox và shell command.
+- **Instruction** chỉ chứa nội dung cố định ở mục 5.4 và job ID đã validate theo regex ở mục 6.1. Nội dung subject, prompt hoặc note của người dùng không được chèn vào command line; Codex đọc chúng từ `prompt.md` và `job.json`.
+
+#### Windows
+
+Sandbox native của Codex trên Windows cần Windows 10 build 1809 trở lên và một lần setup elevated có quyền admin do Codex CLI tự thực hiện. App không tự chạy setup này. Nếu Codex báo sandbox không khả dụng, job thất bại với `CODEX_SANDBOX_UNAVAILABLE` và UI hướng dẫn người dùng chạy setup trong Codex CLI. Không được hạ xuống `danger-full-access` để đi vòng.
 
 ### 5.4 Fixed orchestration instruction
 
-Instruction gửi cho `codex exec` có nội dung cố định theo ý nghĩa sau:
+Instruction gửi cho `codex exec` có nội dung cố định theo ý nghĩa sau; phần duy nhất thay đổi là `<job-id>`:
 
 ```text
-Process the local Reference Image Studio job at workspace/jobs/<job-id>.
-Read and validate job.json, prompt.md, and every file under inputs/.
+You are executing Reference Image Studio job <job-id>.
+The current working directory is the job directory. Read run-instructions.md, job.json and prompt.md.
+The images attached to this message are the references listed in job.json, in the same order.
+Do not read files outside this directory except the Codex image-generation output folder.
 Do not reinterpret or expand the user's creative intent.
-Use the available Codex image-generation capability with the supplied references.
-Write generated images under outputs/ and write result.json matching the project schema.
-Do not call external APIs directly. If image generation is unavailable, write a failed result and stop.
+Generate the images with the built-in image_gen tool using the attached references and prompt.md.
+Copy every generated image into outputs/ and write codex-result.json matching the project schema.
+Do not call external APIs, do not use API keys, and do not enable network access.
+If image generation is unavailable, write a failed codex-result.json and stop.
 ```
 
-Codex CLI là executor, không phải prompt builder. CLI có thể từ chối job không hợp lệ nhưng không được tự đổi role, thêm reference hoặc viết lại creative direction.
+Codex CLI là executor, không phải prompt builder. CLI có thể từ chối job không hợp lệ nhưng không được tự đổi role, thêm reference hoặc viết lại creative direction. `run-instructions.md` trong job directory là bản chi tiết của instruction này (schema của `codex-result.json`, quy tắc đặt tên file trong `outputs/`, cách copy từ thư mục output mặc định của `image_gen`), được sinh từ template `instructions/run-job.md`.
 
 ### 5.5 Progress channel
 
-Main process đọc JSONL từ stdout và chuyển các event đã normalize sang renderer qua IPC:
+Main process đọc stdout của Codex theo từng dòng JSONL, parse từng dòng độc lập và chuyển các event đã normalize sang renderer qua IPC. Dòng không parse được vẫn được ghi vào `events.jsonl` với cờ `unparsed`, không làm job thất bại.
+
+#### Schema event phụ thuộc phiên bản
+
+Schema của `codex exec --json` không ổn định giữa các phiên bản và không có version marker trong stream:
+
+- các bản cũ (ví dụ 0.27) phát `task_started`, `agent_message`, `exec_command_begin`, `exec_command_end`, `task_complete`, `error`;
+- các bản hiện tại phát `thread.started`, `turn.started`, `item.started`, `item.completed`, `turn.completed`, `error`, với `item.type` gồm `agent_message`, `reasoning`, `command_execution`, `file_change`, `mcp_tool_call`, `web_search`, `todo_list` và các tool call khác;
+- bản 0.144 đổi cấu trúc item mà không đổi tên event.
+
+Vì vậy:
+
+- normalizer chỉ hỗ trợ schema `thread.*` / `turn.*` / `item.*` của các bản từ `CODEX_MIN_VERSION` trở lên; event lạ được bỏ qua nhưng vẫn ghi log;
+- dòng đầu tiên của `events.jsonl` do main tự ghi, dạng `{"type":"studio.meta","codexVersion":"...","executable":"...","args":[...]}`, để fixture và người đọc log biết stream thuộc phiên bản nào;
+- mỗi phiên bản Codex được hỗ trợ có fixture JSONL riêng trong test; nâng `CODEX_MIN_VERSION` phải kèm fixture mới.
+
+#### Trạng thái run và activity
+
+Codex không biết các phase của app, nên **trạng thái run do main process quyết định**, không suy ra từ tên event của Codex:
 
 ```text
-queued → validating → preparing → generating → saving → succeeded
-                                           └───────→ failed
+queued → preflight → running → verifying → succeeded
+             │          │          │
+             └──────────┴──────────┴──────→ failed
+                        └─────────────────→ cancelled
 ```
 
-Raw JSONL được lưu tại `events.jsonl` để chẩn đoán. Stderr được lưu riêng tại `stderr.log`; UI chỉ hiển thị thông báo đã sanitize.
+| Trạng thái | Ai đặt | Khi nào |
+|---|---|---|
+| `queued` | main | job directory đã materialize xong (mục 5.2) |
+| `preflight` | main | đang resolve executable, kiểm tra phiên bản và đăng nhập (mục 5.3) |
+| `running` | main | từ lúc spawn thành công đến khi process kết thúc |
+| `verifying` | main | process đã thoát, main đang kiểm tra `codex-result.json` và `outputs/` (mục 5.6 và 7.3) |
+| `succeeded`, `failed`, `cancelled` | main | trạng thái kết thúc, được ghi vào `result.json` |
+
+Trong `running`, các item event của Codex được chuyển thành chuỗi `activity` ngắn dành cho UI (ví dụ "Đang gọi image_gen", "Đang chạy lệnh copy") kèm số thứ tự event. `activity` là thông tin hiển thị, không phải trạng thái, và không ảnh hưởng tới quyết định thành công hay thất bại.
+
+Payload IPC của `jobs.onProgress`:
+
+```json
+{ "jobId": "2026-09-28-richard-nixon-001", "state": "running", "activity": "Đang gọi image_gen", "seq": 42, "at": "2026-09-28T10:00:40Z" }
+```
+
+Raw JSONL được lưu tại `events.jsonl` để chẩn đoán. Stderr được lưu riêng tại `stderr.log`; final message của Codex được CLI ghi vào `last-message.txt`. UI chỉ hiển thị thông báo đã sanitize.
 
 ### 5.6 Completion rule
 
 Exit code `0` chưa đủ để đánh dấu thành công. Job chỉ `succeeded` khi:
 
-- `result.json` hợp lệ theo schema;
+- `codex-result.json` hợp lệ theo schema executor (mục 7.1);
 - có ít nhất một output image;
 - mọi output path nằm trong thư mục job;
 - output file đọc được và có định dạng được hỗ trợ.
@@ -269,13 +349,34 @@ Nếu thiếu bất kỳ điều kiện nào, main process đặt trạng thái 
 
 ## 6. Job packet
 
-`job.json` là hợp đồng bất biến giữa UI Builder và Codex CLI.
+`job.json` là hợp đồng bất biến giữa UI Builder và Codex CLI. File này được ghi một lần khi materialize và không bao giờ được sửa, vì vậy nó **không chứa trạng thái run**. Trạng thái run nằm trong bộ nhớ của main process khi đang chạy và trong `result.json` khi kết thúc (mục 7).
+
+### 6.1 Job ID
+
+Job ID được main process sinh và validate theo một regex duy nhất, dùng chung cho tên thư mục, instruction ở mục 5.4 và IPC:
+
+```text
+^\d{4}-\d{2}-\d{2}-[a-z0-9]{1,24}-\d{3}$
+```
+
+- phần ngày là ngày tạo theo giờ máy;
+- phần slug lấy từ subject name: bỏ dấu tiếng Việt, chuyển ASCII thường, ký tự không phải chữ hoặc số thay bằng `-`, gộp `-` liên tiếp, bỏ `-` ở hai đầu, cắt tối đa 24 ký tự; slug rỗng thay bằng `job`;
+- phần số là số thứ tự ba chữ số, tăng dần trong ngày, kiểm tra không trùng thư mục đang tồn tại.
+
+Job ID không khớp regex thì không được tạo thư mục và không được đưa vào command line.
+
+### 6.2 Cấu trúc
 
 ```json
 {
   "schemaVersion": 1,
-  "jobId": "2026-09-28-nixon-001",
+  "jobId": "2026-09-28-richard-nixon-001",
   "createdAt": "2026-09-28T10:00:00Z",
+  "executor": {
+    "kind": "codex-cli",
+    "minimumVersion": "0.158.0",
+    "imageTool": "image_gen"
+  },
   "subject": {
     "name": "Richard Nixon",
     "description": "Chibi historical character portrait",
@@ -285,18 +386,22 @@ Nếu thiếu bất kỳ điều kiện nào, main process đặt trạng thái 
   },
   "references": [
     {
+      "label": "Image A",
       "role": "style",
       "path": "inputs/style.png",
       "originalName": "master-style.png",
       "mimeType": "image/png",
+      "sizeBytes": 1834022,
       "sha256": "<64 lowercase hex characters>",
       "note": "Rough black outline, muted color and warm paper texture"
     },
     {
+      "label": "Image B",
       "role": "identity",
       "path": "inputs/identity.jpg",
       "originalName": "nixon-front.jpg",
       "mimeType": "image/jpeg",
+      "sizeBytes": 412880,
       "sha256": "<64 lowercase hex characters>",
       "note": "Preserve facial structure, hairline and age cues"
     }
@@ -312,54 +417,107 @@ Nếu thiếu bất kỳ điều kiện nào, main process đặt trạng thái 
     "anchor": "nixon-v1"
   },
   "promptPath": "prompt.md",
-  "status": "queued"
+  "promptSha256": "<64 lowercase hex characters>"
 }
 ```
 
-Các path trong packet luôn là relative path nằm trong job directory. Codex CLI không cần đọc file gốc bên ngoài job.
+Quy tắc:
+
+- Các path trong packet luôn là relative path nằm trong job directory. Codex CLI không cần đọc file gốc bên ngoài job.
+- `references` được sắp theo thứ tự role cố định; `label` trùng với nhãn trong `prompt.md` và với thứ tự `-i` ở mục 5.3.
+- `mimeType` được xác định bằng magic bytes của file, không phải bằng đuôi file.
+- `output` là **yêu cầu**, không phải đảm bảo: `image_gen` nhận kích thước, format và số lượng qua ngôn ngữ tự nhiên trong prompt. Giá trị thực tế do main đo và ghi vào `result.json`.
+- `promptSha256` là checksum của `prompt.md`, để main đối chiếu với prompt đã preview trên UI (mục 10).
+- `executor` ghi lại điều kiện chạy, để log và recent jobs vẫn diễn giải được khi `CODEX_MIN_VERSION` thay đổi sau này.
 
 ## 7. Result contract
 
-Codex ghi `result.json`; Electron main process kiểm tra lại trước khi gửi kết quả cho UI.
+Có hai file kết quả với chủ sở hữu khác nhau:
+
+| File | Ai ghi | Vai trò |
+|---|---|---|
+| `codex-result.json` | Codex CLI | báo cáo của executor: những ảnh đã tạo, hoặc lý do dừng |
+| `result.json` | Electron main process | kết quả cuối cùng đã được kiểm chứng; là nguồn duy nhất mà UI và recent jobs đọc |
+
+Main process **luôn** ghi `result.json`, kể cả khi Codex chưa hề chạy (lỗi preflight), bị cancel, hoặc `codex-result.json` thiếu hay sai. Codex không bao giờ ghi `result.json`. UI không đọc `codex-result.json`.
+
+### 7.1 codex-result.json
 
 ```json
 {
   "schemaVersion": 1,
-  "jobId": "2026-09-28-nixon-001",
+  "jobId": "2026-09-28-richard-nixon-001",
+  "status": "succeeded",
+  "outputs": [
+    { "path": "outputs/001.png" }
+  ],
+  "error": null
+}
+```
+
+Khi thất bại, `status` là `failed`, `outputs` là mảng rỗng và `error` gồm `code` và `message`. Codex chỉ được dùng các mã `INVALID_JOB`, `MISSING_REFERENCE`, `IMAGE_CAPABILITY_UNAVAILABLE` và `GENERATION_FAILED`; mã khác bị main coi là `INVALID_RESULT`.
+
+### 7.2 result.json
+
+```json
+{
+  "schemaVersion": 1,
+  "jobId": "2026-09-28-richard-nixon-001",
   "status": "succeeded",
   "startedAt": "2026-09-28T10:00:02Z",
   "completedAt": "2026-09-28T10:01:12Z",
+  "executor": {
+    "codexVersion": "0.158.0",
+    "executable": "C:\\Users\\<user>\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex-x86_64-pc-windows-msvc.exe",
+    "exitCode": 0,
+    "signal": null
+  },
   "outputs": [
     {
       "path": "outputs/001.png",
       "mimeType": "image/png",
       "width": 1024,
-      "height": 1365
+      "height": 1365,
+      "sizeBytes": 1522311,
+      "sha256": "<64 lowercase hex characters>"
     }
   ],
+  "warnings": [],
   "promptPath": "prompt.md",
   "error": null
 }
 ```
 
-Khi thất bại:
+Mọi giá trị trong `outputs` do main đo trực tiếp từ file: `mimeType` từ magic bytes, `width` và `height` từ header ảnh, `sha256` và `sizeBytes` từ nội dung. Giá trị Codex khai trong `codex-result.json` không được copy sang.
 
-- `status` là `failed`;
-- `outputs` là mảng rỗng;
-- `error.code` là mã ổn định;
-- `error.message` là thông báo ngắn dành cho người dùng;
-- log kỹ thuật nằm trong `events.jsonl` và `stderr.log`.
+### 7.3 Quy tắc verify
 
-Mã lỗi tối thiểu:
+Bổ sung cho mục 5.6, áp dụng trong trạng thái `verifying`:
 
-- `CODEX_NOT_FOUND`;
-- `CODEX_NOT_AUTHENTICATED`;
-- `INVALID_JOB`;
-- `MISSING_REFERENCE`;
-- `IMAGE_CAPABILITY_UNAVAILABLE`;
-- `GENERATION_FAILED`;
-- `INVALID_RESULT`;
-- `CANCELLED`.
+- `codex-result.json` phải hợp lệ theo schema; thiếu hoặc sai thì `INVALID_RESULT`.
+- Mỗi output path sau khi normalize phải nằm trong `outputs/` của job, là file thường, không phải symlink, đọc được và đúng magic bytes PNG, JPEG hoặc WebP; vi phạm thì `INVALID_RESULT`.
+- `status` là `succeeded` trong `codex-result.json` nhưng `outputs` rỗng thì `INVALID_RESULT`.
+- File có trong `outputs/` nhưng không được khai trong `codex-result.json` bị bỏ qua và được ghi vào `warnings`.
+- Kích thước, tỉ lệ hoặc format thực tế khác với `output` yêu cầu trong `job.json` không làm job thất bại; sai lệch được ghi vào `warnings` và UI hiển thị.
+- Exit code khác 0 mà không có `codex-result.json` thì `GENERATION_FAILED`. Exit code 0 vẫn phải qua đủ các bước trên.
+
+### 7.4 Mã lỗi
+
+| Mã | Ai đặt | Ý nghĩa |
+|---|---|---|
+| `CODEX_NOT_FOUND` | main | không resolve được executable thật (mục 5.3) |
+| `CODEX_VERSION_UNSUPPORTED` | main | phiên bản thấp hơn `CODEX_MIN_VERSION` |
+| `CODEX_NOT_AUTHENTICATED` | main | `codex login status` trả exit code khác 0 |
+| `CODEX_SANDBOX_UNAVAILABLE` | main | Codex báo không thể dựng sandbox trên máy này |
+| `INVALID_JOB` | Codex hoặc main | job packet không hợp lệ |
+| `MISSING_REFERENCE` | Codex hoặc main | reference khai trong `job.json` không tồn tại hoặc không đọc được |
+| `IMAGE_CAPABILITY_UNAVAILABLE` | Codex | tool `image_gen` không có hoặc bị từ chối trong phiên |
+| `GENERATION_FAILED` | Codex hoặc main | sinh ảnh thất bại, hoặc process thoát lỗi mà không có báo cáo |
+| `INVALID_RESULT` | main | `codex-result.json` hoặc output không qua được verify |
+| `CANCELLED` | main | người dùng bấm Cancel |
+| `INTERRUPTED` | main | app khởi động lại và thấy job chưa có `result.json` |
+
+`error.message` là thông báo ngắn dành cho người dùng, đã sanitize; log kỹ thuật nằm trong `events.jsonl`, `stderr.log` và `last-message.txt`. `status` trong `result.json` là một trong `succeeded`, `failed`, `cancelled`.
 
 ## 8. IPC contract
 
@@ -428,6 +586,8 @@ reference-image-studio/
 │        ├─ outputs/
 │        ├─ events.jsonl
 │        ├─ stderr.log
+│        ├─ last-message.txt
+│        ├─ codex-result.json
 │        └─ result.json
 └─ docs/
    └─ superpowers/specs/
@@ -481,14 +641,19 @@ Builder có các trạng thái độc lập:
 - `ready`: hợp lệ để generate;
 - `invalid`: thiếu hoặc sai dữ liệu.
 
-Run có các trạng thái:
+Run dùng đúng một bộ trạng thái, định nghĩa ở mục 5.5 và do main process đặt:
 
 - `queued`;
-- `validating`;
+- `preflight`;
 - `running`;
+- `verifying`;
 - `succeeded`;
 - `failed`;
 - `cancelled`.
+
+`succeeded`, `failed` và `cancelled` là trạng thái kết thúc; giá trị trong `result.json` và trong IPC progress phải trùng nhau. Chuỗi `activity` hiển thị trong `running` không phải trạng thái và không được dùng để rẽ nhánh logic.
+
+Recent jobs hiển thị trạng thái đọc từ `result.json`. Job không có `result.json` và không nằm trong danh sách đang chạy của main được hiển thị là `failed` với mã `INTERRUPTED`.
 
 Không dùng một boolean `loading` chung cho toàn ứng dụng.
 
@@ -566,4 +731,19 @@ Phiên bản đầu được xem là hoàn thành khi:
 
 ## 17. Tài liệu tham chiếu
 
-- [Testing Agent Skills Systematically with Evals — OpenAI Developers](https://developers.openai.com/blog/eval-skills): mô tả `codex exec` cho automation, JSONL với `--json`, và quyền ghi file với `--full-auto`.
+Nguồn chính thức của OpenAI:
+
+- [Developer commands — Codex CLI reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli): các flag của `codex exec` (`--json`, `--sandbox`, `-C`, `-i`, `--output-last-message`, `--skip-git-repo-check`), ghi chú `--full-auto` là deprecated, và các lệnh `codex login status`, `codex doctor`.
+- [Windows sandbox — Codex](https://learn.chatgpt.com/docs/windows/windows-sandbox): yêu cầu Windows 10 build 1809 trở lên, setup elevated cần quyền admin, network phụ thuộc permissions mode.
+- [Building a safe, effective sandbox to enable Codex on Windows — OpenAI](https://openai.com/index/building-codex-windows-sandbox/): kiến trúc sandbox native trên Windows.
+- [imagegen SKILL.md — openai/codex](https://github.com/openai/codex/blob/main/codex-rs/skills/src/assets/samples/imagegen/SKILL.md): tool `image_gen` không cần `OPENAI_API_KEY`, ảnh lưu mặc định dưới `$CODEX_HOME`, edit mode chỉ dùng ảnh đã có trong context, output phải được copy vào workspace.
+- [Issue #41216 — openai/codex](https://github.com/openai/codex/issues/41216): schema `codex exec --json` đổi ở bản 0.144 mà không có version marker.
+- [@openai/codex trên npm](https://www.npmjs.com/package/@openai/codex): tra phiên bản mới nhất khi cập nhật `CODEX_MIN_VERSION`.
+- [Testing Agent Skills Systematically with Evals — OpenAI Developers](https://developers.openai.com/blog/eval-skills): `codex exec` cho automation và JSONL với `--json`. Bài này không nói gì về sinh ảnh và dùng `--full-auto` theo cách đã cũ.
+
+Tham khảo không chính thức, cần đối chiếu với nguồn chính thức trước khi dựa vào:
+
+- [Image generation in Codex CLI: gpt-image-2 và skill $imagegen](https://codex.danielvaughan.com/2026/04/27/codex-cli-image-generation-gpt-image-2-visual-development-workflows/): mốc thời gian tool `image_gen` xuất hiện (khoảng 0.115 đến 0.117, tháng 3/2026) và gpt-image-2 là mặc định từ 21/4/2026.
+- [Codex exec --json event cheatsheet](https://takopi.dev/reference/runners/codex/exec-json-cheatsheet/): danh sách event và item type của schema hiện tại.
+
+Môi trường đã kiểm chứng ngày 2026-09-28 trên máy phát triển Windows 10 build 19045: Codex CLI cài qua npm là 0.27.0 và không có `image_gen`; bản mới nhất trên npm là 0.158.0; `codex` trong `PATH` là shim `codex.cmd`.
