@@ -494,3 +494,163 @@ button:disabled {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* --- preflight banner (plan Task 5.5) --- */
+
+.preflight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  background: var(--warning-surface);
+  font-size: 0.8rem;
+}
+
+.preflight--ok {
+  border-color: var(--border);
+  background: var(--surface-sunken);
+}
+
+.preflight__line,
+.preflight__path {
+  margin: 0;
+}
+
+.preflight__path {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.preflight__settings {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.preflight__settings .field {
+  flex: 1 1 auto;
+}
+
+/* --- generate bar and run progress (plan Task 5.5) --- */
+
+.generate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.generate__hint,
+.run--idle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.generate__error,
+.run__error,
+.recent__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.76rem;
+}
+
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-size: 0.78rem;
+}
+
+.run__job,
+.run__state,
+.run__activity {
+  margin: 0;
+}
+
+.run__job {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.run__state {
+  font-weight: 600;
+}
+
+/* --- recent jobs (plan Task 5.5) --- */
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.recent__empty,
+.recent__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.recent__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.72rem;
+}
+
+.recent__table th,
+.recent__table td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.recent__table thead th {
+  background: var(--surface-sunken);
+}
+
+.recent__thumbnail {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.recent__thumbnail--empty {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.recent__warnings {
+  margin: 4px 0 0;
+  padding-left: 14px;
+  color: var(--warning-border);
+  font-size: 0.68rem;
+}
+
+.recent__code {
+  color: var(--text-muted);
+}
+
+.recent__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

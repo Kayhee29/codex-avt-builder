@@ -131,6 +131,7 @@ export const vi = {
     anchors: 'Anchor',
     recentJobs: 'Job gần đây',
     generate: 'Tạo ảnh',
+    codex: 'Trạng thái Codex CLI',
     reserved: 'Phần này được hoàn thiện ở bước sau.'
   },
 
@@ -190,7 +191,54 @@ export const vi = {
 
   jobs: {
     listFailed: 'Không đọc được danh sách job.',
-    empty: 'Chưa có job nào.'
+    empty: 'Chưa có job nào.',
+    columnThumbnail: 'Ảnh',
+    columnJob: 'Job',
+    columnSubject: 'Nhân vật',
+    columnState: 'Trạng thái',
+    columnTime: 'Thời gian',
+    columnPreset: 'Preset',
+    columnAnchor: 'Anchor',
+    columnActions: 'Thao tác',
+    openFolder: 'Mở thư mục',
+    duplicate: 'Nhân bản',
+    none: '—',
+    noThumbnail: 'Chưa có ảnh.',
+    warnings: 'Cảnh báo',
+    actionFailed: 'Không thực hiện được thao tác này.',
+    duplicated:
+      'Đã dựng nháp mới từ job này. Ràng buộc loại trừ không được lưu trong job.json nên cần nhập lại.'
+  },
+
+  generate: {
+    button: 'Tạo ảnh',
+    starting: 'Đang gửi job…',
+    blockedInvalid: 'Còn thiếu dữ liệu bắt buộc nên chưa tạo ảnh được.',
+    blockedRunning: 'Đang có một job chạy.',
+    failed: 'Không bắt đầu được job.',
+    checksumFailed: 'Chưa tính được checksum của prompt nên chưa gửi job.',
+    idle: 'Phiên này chưa chạy job nào.',
+    jobLabel: 'Job',
+    activity: 'Hoạt động',
+    cancel: 'Hủy job',
+    cancelFailed: 'Không hủy được job.'
+  },
+
+  preflight: {
+    checking: 'Đang kiểm tra Codex CLI…',
+    ok: 'Codex CLI sẵn sàng và đã đăng nhập.',
+    version: 'Phiên bản',
+    executable: 'Đường dẫn',
+    recheck: 'Kiểm tra lại',
+    executableLabel: 'Đường dẫn Codex CLI',
+    executableHint: 'Chỉ nhận file thực thi thật; trên Windows phải là đuôi .exe.',
+    save: 'Lưu đường dẫn',
+    saveFailed: 'Không lưu được cài đặt.',
+    failed: 'Không kiểm tra được Codex CLI.'
+  },
+
+  closeGuard: {
+    running: 'Đang có job chạy. Đóng cửa sổ bây giờ sẽ hủy job đó.'
   },
 
   common: {

@@ -14,9 +14,12 @@ import { useEffect, type JSX } from 'react'
 import { builderStatusText } from './i18n/vi.ts'
 import { AnchorPanel } from './components/AnchorPanel.tsx'
 import { CharacterForm } from './components/CharacterForm.tsx'
+import { GenerateBar } from './components/GenerateBar.tsx'
 import { Layout } from './components/Layout.tsx'
+import { PreflightBanner } from './components/PreflightBanner.tsx'
 import { PresetPanel } from './components/PresetPanel.tsx'
 import { PromptPreview } from './components/PromptPreview.tsx'
+import { RecentJobs } from './components/RecentJobs.tsx'
 import { ReferenceSlots } from './components/ReferenceSlots.tsx'
 import { selectBuilderStatus, useBuilderStore } from './store/builder.ts'
 import { useJobsStore } from './store/jobs.ts'
@@ -49,11 +52,14 @@ export function App(): JSX.Element {
   return (
     <Layout
       status={builderStatusText(status)}
+      banner={<PreflightBanner />}
       characterDirection={<CharacterForm />}
       referenceSlots={<ReferenceSlots />}
       promptPreview={<PromptPreview />}
       presetPanel={<PresetPanel />}
       anchorPanel={<AnchorPanel />}
+      recentJobs={<RecentJobs />}
+      generateBar={<GenerateBar />}
     />
   )
 }
