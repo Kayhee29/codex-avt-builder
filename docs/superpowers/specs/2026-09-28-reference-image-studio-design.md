@@ -418,6 +418,7 @@ Giá trị trong ngoặc nhọn ở ví dụ dưới là chỗ giữ chỗ cho n
     "format": "png",
     "count": 1
   },
+  "negativeConstraints": ["no text", "no watermark"],
   "source": {
     "preset": "chibi-master-v1",
     "anchor": "nixon-v1"
@@ -433,6 +434,7 @@ Quy tắc:
 - `references` được sắp theo thứ tự role cố định; `label` trùng với nhãn trong `prompt.md` và với thứ tự `-i` ở mục 5.3.
 - `mimeType` được xác định bằng magic bytes của file, không phải bằng đuôi file.
 - `output` là **yêu cầu**, không phải đảm bảo: `image_gen` nhận kích thước, format và số lượng qua ngôn ngữ tự nhiên trong prompt. Giá trị thực tế do main đo và ghi vào `result.json`.
+- `negativeConstraints` là danh sách đã gộp từ preset và người dùng, sau khi khử trùng lặp. Packet phải lưu nó thành field riêng chứ không chỉ để nó nằm trong văn bản `prompt.md`, nếu không thao tác duplicate ở mục 4.6 sẽ mất dữ liệu này.
 - `promptSha256` là checksum của `prompt.md`, để main đối chiếu với prompt đã preview trên UI (mục 10).
 - `executor` ghi lại điều kiện chạy, để log và recent jobs vẫn diễn giải được khi `CODEX_MIN_VERSION` thay đổi sau này.
 
