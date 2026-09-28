@@ -513,7 +513,14 @@ export function selectReference(store: BuilderStore, role: ReferenceRole): Build
   return store.state.references.find((reference) => reference.role === role) ?? null
 }
 
-/** The roles whose file has disappeared since it was chosen (spec 4.2). */
+/**
+ * The roles whose file has disappeared since it was chosen (spec section 4.2).
+ *
+ * This builds a fresh array, so it is for `getState()` and for selectors that
+ * reduce it to a primitive. Do not hand it to `useBuilderStore` directly:
+ * zustand compares snapshots by identity and a new array every call re-renders
+ * forever. Subscribe to `store.state.references` and filter in the component.
+ */
 export function selectMissingRoles(store: BuilderStore): ReferenceRole[] {
   return store.state.references
     .filter((reference) => reference.missing)
