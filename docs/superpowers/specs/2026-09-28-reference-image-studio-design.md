@@ -234,7 +234,7 @@ Preflight không gọi `codex exec` và không tiêu tốn generation. Kết qu�
 
 #### Resolve executable
 
-Main process không spawn tên `codex` trần. Trên Windows, `codex` trong `PATH` là shim `codex.cmd` do npm tạo; shim này gọi `node` rồi mới tới binary thật `codex-x86_64-pc-windows-msvc.exe`. `child_process.spawn` với `shell: false` không resolve được file `.cmd` và sẽ lỗi `ENOENT`. Thứ tự resolve:
+Main process không spawn tên `codex` trần. Trên Windows, `codex` trong `PATH` là shim `codex.cmd` do npm tạo; shim này gọi `node` rồi mới tới binary thật `codex-x86_64-pc-windows-msvc.exe`. `child_process.spawn` với `shell: false` từ chối thẳng file `.cmd` và `.bat` kể từ Node 20.12 (bản vá BatBadBut), lỗi là `EINVAL` chứ không phải `ENOENT`. Đã kiểm chứng trên Node 25.2.1 ngày 2026-09-29. Thứ tự resolve:
 
 1. đường dẫn do người dùng cấu hình trong app settings, nếu có;
 2. binary thật trong package npm global `@openai/codex` (thư mục `bin/` hoặc package theo platform);
