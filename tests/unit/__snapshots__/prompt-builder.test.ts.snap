@@ -1,0 +1,57 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshot > renders a fully populated state 1`] = `
+"## Image goal
+
+Generate 1 image of Richard Nixon.
+The attached reference images are the visual source of truth.
+Do not reinterpret or expand the user's creative direction.
+
+## Reference map
+
+The images attached to this job are listed below in attachment order.
+
+- Image A → style → master-style.png
+  - Note: Rough black outline, muted color and warm paper texture
+- Image B → identity → nixon-front.jpg
+  - Note: Preserve facial structure, hairline and age cues
+- Image C → outfit → dark-suit.png
+- Image D → equipment → briefcase.png
+  - Note: Held in the left hand
+- Image E → extra → flag.png
+  - Note: Small flag pin on the lapel
+
+## Subject
+
+- Name: Richard Nixon
+- Description: Chibi historical character portrait
+
+## Pose, expression and composition
+
+- Pose: Full body, standing upright
+- Expression: Serious, no smile
+- Composition note: Clear silhouette
+
+## Output constraints
+
+- Aspect ratio: 3:4
+- Background: pale warm paper
+- File format: png
+- Number of images: 1
+
+## Conflict policy
+
+- The identity reference decides facial features.
+- The style reference decides how the image is rendered.
+- The outfit reference decides clothing.
+- The equipment reference decides objects.
+- The user's latest and most explicit direction has the highest priority.
+
+## Negative constraints
+
+- no photo realism
+- no text
+- no watermark
+- no modern clothing
+"
+`;
