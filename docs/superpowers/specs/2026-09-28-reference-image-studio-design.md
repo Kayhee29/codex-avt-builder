@@ -356,16 +356,20 @@ Nếu thiếu bất kỳ điều kiện nào, main process đặt trạng thái 
 Job ID được main process sinh và validate theo một regex duy nhất, dùng chung cho tên thư mục, instruction ở mục 5.4 và IPC:
 
 ```text
-^\d{4}-\d{2}-\d{2}-[a-z0-9]{1,24}-\d{3}$
+^\d{4}-\d{2}-\d{2}-[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?-\d{3}$
 ```
 
 - phần ngày là ngày tạo theo giờ máy;
 - phần slug lấy từ subject name: bỏ dấu tiếng Việt, chuyển ASCII thường, ký tự không phải chữ hoặc số thay bằng `-`, gộp `-` liên tiếp, bỏ `-` ở hai đầu, cắt tối đa 24 ký tự; slug rỗng thay bằng `job`;
 - phần số là số thứ tự ba chữ số, tăng dần trong ngày, kiểm tra không trùng thư mục đang tồn tại.
 
+Slug được phép chứa `-` ở giữa nhưng không ở hai đầu, nên regex có ba phần thay vì một lớp ký tự đơn giản. Đây là lý do `2026-09-28-richard-nixon-001` hợp lệ.
+
 Job ID không khớp regex thì không được tạo thư mục và không được đưa vào command line.
 
 ### 6.2 Cấu trúc
+
+Giá trị trong ngoặc nhọn ở ví dụ dưới là chỗ giữ chỗ cho người đọc, không phải giá trị hợp lệ. `sha256` thật là 64 ký tự hex thường.
 
 ```json
 {
