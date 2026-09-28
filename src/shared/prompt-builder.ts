@@ -109,20 +109,22 @@ export function orderReferences(references: readonly PromptReference[]): Ordered
 }
 
 /**
- * Merges lists of negative constraints, keeping the first occurrence of each
- * one and dropping blanks (spec section 4.3, plan Task 1.4).
+ * Concatenates lists of short phrases, keeping the first occurrence of each one
+ * and dropping blanks.
  *
- * Two constraints are the same when they only differ in surrounding space,
- * inner runs of space or letter case; the text kept is the first spelling seen.
+ * Two entries are the same when they only differ in surrounding space, inner
+ * runs of space or letter case; the text kept is the first spelling seen.
+ * `src/shared/preset-merge.ts` reuses this so that applying the same preset
+ * twice does not stack up duplicates.
  */
-export function mergeNegativeConstraints(...lists: readonly (readonly string[])[]): string[] {
+export function mergeUniqueText(...lists: readonly (readonly string[])[]): string[] {
   const seen = new Set<string>()
   const merged: string[] = []
 
   for (const list of lists) {
     for (const entry of list) {
       const text = entry.trim()
-      const key = text.toLowerCase().replace(/\s+/g, ' ')
+      const key = normalizeForComparison(text)
 
       if (text === '' || seen.has(key)) {
         continue
@@ -134,6 +136,19 @@ export function mergeNegativeConstraints(...lists: readonly (readonly string[])[
   }
 
   return merged
+}
+
+/** The comparison key of {@link mergeUniqueText}: case and spacing folded. */
+export function normalizeForComparison(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/**
+ * Merges lists of negative constraints from the preset and from the user,
+ * dropping repeats (spec section 4.3, plan Task 1.4).
+ */
+export function mergeNegativeConstraints(...lists: readonly (readonly string[])[]): string[] {
+  return mergeUniqueText(...lists)
 }
 
 /**
