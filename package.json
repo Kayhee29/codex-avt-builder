@@ -21,7 +21,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "echo e2e suite is not implemented yet - Task 6.1 adds the Playwright Electron harness",
+    "test:e2e": "electron-vite build && playwright test",
     "export-schemas": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/export-schemas.ts"
   },
   "dependencies": {
@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/node": "24.19.0",

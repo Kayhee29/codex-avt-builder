@@ -36,6 +36,7 @@ import { Library } from './library.ts'
 import { recoverInterruptedJobs } from './recovery.ts'
 import { nativeImageThumbnail, ReferenceRegistry } from './reference-registry.ts'
 import { loadSettings } from './settings.ts'
+import { scriptedShowMessageBox, scriptedShowOpenDialog, testCodexLauncher } from './test-hooks.ts'
 import { ensureWorkspaceLayout, resolveWorkspaceRoot } from './workspace.ts'
 
 const RENDERER_DEV_URL = process.env['ELECTRON_RENDERER_URL']
@@ -118,7 +119,13 @@ async function createServices(): Promise<IpcServices & { readonly jobs: JobServi
 
   const settings = await loadSettings(layout.root)
   const registry = new ReferenceRegistry({ renderThumbnail: nativeImageThumbnail })
-  const preflight = new ReconfigurablePreflight({ codexExecutable: settings.codexExecutable })
+  // Plan Task 6.1: only ever non-null with `NODE_ENV=test`, where it points at
+  // the fake Codex of plan Task 3.3 so no automated run reaches the real CLI.
+  const launcher = testCodexLauncher(process.env, app.getAppPath())
+  const preflight = new ReconfigurablePreflight({
+    codexExecutable: settings.codexExecutable,
+    ...(launcher === null ? {} : { launcher })
+  })
   const progress = new ProgressForwarder(() =>
     BrowserWindow.getAllWindows().map((window) => window.webContents)
   )
@@ -139,7 +146,9 @@ async function createServices(): Promise<IpcServices & { readonly jobs: JobServi
     library: new Library({ workspace: layout, registry }),
     jobs,
     preflight,
-    showOpenDialog: electronShowOpenDialog,
+    // Plan Task 6.1: Playwright drives the renderer and cannot click a native
+    // picker, so under `NODE_ENV=test` the choice comes from a scripted file.
+    showOpenDialog: scriptedShowOpenDialog(process.env) ?? electronShowOpenDialog,
     logError: (channel, error) => {
       // The renderer only ever gets a sanitized sentence (spec section 11), so
       // this is the one place the real failure is recorded.
@@ -166,10 +175,14 @@ void app
     // Spec section 10: closing must not silently kill a run in progress.
     // Choosing to quit cancels every run, and each of those writes its own
     // `result.json` with `CANCELLED` (spec section 7.4).
+    // Plan Task 6.1: the question is a native dialog, which Playwright cannot
+    // answer, so `electronApp.close()` on top of a run would hang. Under
+    // `NODE_ENV=test` the answer is scripted instead.
     const guard = new CloseGuard({
       jobs: services.jobs,
-      showMessageBox: async (options) =>
-        dialog.showMessageBox({ ...options, buttons: [...options.buttons] }),
+      showMessageBox:
+        scriptedShowMessageBox(process.env) ??
+        (async (options) => dialog.showMessageBox({ ...options, buttons: [...options.buttons] })),
       quit: () => {
         app.quit()
       }

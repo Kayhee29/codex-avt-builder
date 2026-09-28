@@ -44,7 +44,12 @@
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    // The Playwright suite of plan Task 6.1. It runs on Node and drives the
+    // built app from the outside, so it belongs to this project and not to the
+    // web one, even though what it drives is a renderer.
+    "playwright.config.ts",
+    "e2e/**/*.ts"
   ],
   // Renderer tests are React and DOM code; they belong to the web project
   // (tsconfig.web.json), which has the DOM lib and `jsx: react-jsx`. Without

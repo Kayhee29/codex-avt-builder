@@ -49,6 +49,14 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules
   },
 
+  // Playwright decides what a fixture depends on by reading its destructuring
+  // pattern, so a fixture that depends on nothing must still be written
+  // `async ({}, use)`. That is the framework's contract, not a mistake.
+  {
+    files: ['e2e/**/*.ts'],
+    rules: { 'no-empty-pattern': 'off' }
+  },
+
   {
     rules: {
       '@typescript-eslint/consistent-type-imports': [
