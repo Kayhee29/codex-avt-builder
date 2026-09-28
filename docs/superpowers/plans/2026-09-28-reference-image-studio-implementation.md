@@ -474,6 +474,12 @@ Sanitize (bỏ thread id, đường dẫn tuyệt đối, tên người dùng), 
 
 **Hành vi:** build Windows portable hoặc NSIS; `workspace/` nằm trong `app.getPath('userData')` khi chạy bản đóng gói, nằm trong repo khi `pnpm dev` (đọc từ `resolveWorkspaceRoot`).
 
+**Phải kiểm tra trong bản đóng gói thật:**
+
+1. **CSP có thực sự được áp không.** Q15 dùng `webRequest.onHeadersReceived`, nhưng renderer đóng gói được nạp bằng `loadFile`, tức `file://`, và Chromium không đảm bảo giao header cho response `file://`. Nếu header không tới nơi thì chọn giữa custom protocol `app://` hoặc thẻ meta chỉ chèn trong bản đóng gói. Kiểm bằng cách mở DevTools và thử một thao tác mà CSP phải chặn.
+2. **`instructionTemplatePath` phải được truyền tường minh**, vì `DEFAULT_INSTRUCTION_TEMPLATE_PATH` resolve theo `import.meta.url` và đường dẫn đó không còn đúng khi đã đóng gói.
+3. **Preload phải giữ `zod` trong bundle.** Preload chạy với `sandbox: true` nên chỉ `require` được Electron và vài built-in; `electron.vite.config.ts` đã có `externalizeDepsPlugin({ exclude: ['zod'] })` riêng cho preload. Kiểm `out/preload/index.js` chỉ còn `require("electron")`.
+
 **Commit:** `build: electron-builder config for Windows`
 
 ## 5. Thứ tự ưu tiên và mốc kiểm tra
