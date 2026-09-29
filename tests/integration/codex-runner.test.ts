@@ -126,6 +126,8 @@ describe('buildCodexArgs', () => {
       '--sandbox',
       'workspace-write',
       '--skip-git-repo-check',
+      '-c',
+      'features.apps=false',
       '-C',
       '/jobs/2026-09-28-richard-nixon-001',
       '-i',
@@ -154,6 +156,29 @@ describe('buildCodexArgs', () => {
     }
   })
 
+  it('closes the Codex apps tool surface, and does it with -c so a renamed flag cannot break a job', () => {
+    const args = buildCodexArgs({
+      jobId: JOB_ID,
+      jobDir,
+      inputPaths: [],
+      launcher: { prefixArgs: [] }
+    })
+
+    const at = args.indexOf('features.apps=false')
+
+    expect(at).toBeGreaterThan(0)
+    expect(args[at - 1]).toBe('-c')
+
+    // `--disable apps` does the same thing today, but Codex exits 1 on a
+    // feature name it does not know, so the day that flag is renamed every job
+    // on the machine would fail. An unknown `-c features.*` key is ignored.
+    expect(args).not.toContain('--disable')
+
+    // It must not land between `-i` and the prompt: `-i` is variadic and
+    // `--output-last-message` is what terminates it.
+    expect(at).toBeLessThan(args.indexOf('-C'))
+  })
+
   it('refuses a job ID that does not match spec section 6.1', () => {
     expect(() =>
       buildCodexArgs({
@@ -180,6 +205,8 @@ describe('CodexRunner.start', () => {
       '--sandbox',
       'workspace-write',
       '--skip-git-repo-check',
+      '-c',
+      'features.apps=false',
       '-C',
       jobDir,
       '-i',

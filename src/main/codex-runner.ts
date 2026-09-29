@@ -203,6 +203,7 @@ export interface CodexRunOutcome {
  *
  * ```text
  * <prefixArgs…> exec --json --sandbox workspace-write --skip-git-repo-check
+ *   -c features.apps=false
  *   -C <job directory>
  *   -i <inputs/…>            (repeated, in role order)
  *   --output-last-message <job directory>/last-message.txt
@@ -214,6 +215,24 @@ export interface CodexRunOutcome {
  * `-c sandbox_workspace_write.network_access=true` are forbidden by spec
  * section 5.3 and never appear here, not even as a fallback when the sandbox
  * fails.
+ *
+ * `features.apps=false` closes the `codex_apps` tool surface. The
+ * `workspace-write` sandbox restricts the commands Codex *runs*; it does not
+ * restrict the tools the model can *call*. Observed on 0.158.0: with
+ * `image_gen` unavailable, Codex reached for the bundled Adobe app tools
+ * instead — it generated the image through `adobe.image_generate`, called
+ * `photoshop-api.adobe.io`, and uploaded a local file with
+ * `adobe.asset_openai_file_upload`. For this app that is the failure mode
+ * spec section 2 rules out: a reference photograph leaving the machine for a
+ * third party, and an image produced by something other than `image_gen`.
+ * Section 4 of `instructions/run-job.md` tells Codex not to look for another
+ * way, but prose is not an enforcement boundary; removing the tools is.
+ *
+ * It is written as `-c features.apps=false` rather than `--disable apps`
+ * because the two are equivalent only while the flag exists: Codex exits 1 on
+ * a feature name it does not recognise, so a rename upstream would fail every
+ * job, whereas an unrecognised `-c features.*` key is ignored. Verified with
+ * `codex debug prompt-input`, which drops `codex_apps` and keeps `image_gen`.
  */
 export function buildCodexArgs(request: {
   readonly jobId: string
@@ -230,6 +249,8 @@ export function buildCodexArgs(request: {
     '--sandbox',
     'workspace-write',
     '--skip-git-repo-check',
+    '-c',
+    'features.apps=false',
     '-C',
     request.jobDir,
     ...request.inputPaths.flatMap((path) => ['-i', path]),
