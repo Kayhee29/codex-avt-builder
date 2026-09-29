@@ -438,7 +438,11 @@ function commandProgram(item: Readonly<Record<string, unknown>>): string | undef
     return undefined
   }
 
-  const first = command.trim().split(/\s+/)[0]
+  // Codex quotes an executable whose path contains spaces, which on Windows is
+  // every command it runs: `"C:\…\powershell.exe" -Command …`. Without dropping
+  // the quotes the basename keeps the closing one and the safe-token pattern
+  // rejects it, so the activity loses the program name it exists to show.
+  const first = command.trim().split(/\s+/)[0]?.replaceAll('"', '')
 
   return safeToken(first?.split(/[\\/]/).pop())
 }

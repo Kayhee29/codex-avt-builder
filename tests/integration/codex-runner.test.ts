@@ -318,7 +318,7 @@ describe('CodexRunner.start', () => {
     expect(types).toContain('turn.completed')
   })
 
-  it('emits progress events with a rising seq and the image_gen activity', async () => {
+  it('emits progress events with a rising seq and an activity for each command', async () => {
     const events: ProgressEvent[] = []
 
     await run('success', { events })
@@ -331,7 +331,10 @@ describe('CodexRunner.start', () => {
       expect(event.jobId).toBe(JOB_ID)
     }
 
-    expect(events.map((event) => event.activity)).toContain(ACTIVITY.imageGen)
+    // `ACTIVITY.imageGen` is deliberately not asserted here: the captured
+    // 0.158.0 stream has no image_gen tool call in it, because the image comes
+    // from the imagegen skill, which announces nothing.
+    expect(events.map((event) => event.activity)).toContain(`${ACTIVITY.command} powershell.exe`)
   })
 
   it('writes stderr to stderr.log and reports a non-zero exit code', async () => {
@@ -349,7 +352,9 @@ describe('CodexRunner.start', () => {
   it('honours --output-last-message the way the real CLI does', async () => {
     await run('success')
 
-    expect(await readFile(join(jobDir, LAST_MESSAGE_FILE_NAME), 'utf8')).toContain('image_gen')
+    // The final agent message of the captured run, which is what the prompt
+    // asked Codex to print.
+    expect(await readFile(join(jobDir, LAST_MESSAGE_FILE_NAME), 'utf8')).toContain('DONE')
   })
 
   it('refuses a second start while the job is running (spec section 10)', async () => {

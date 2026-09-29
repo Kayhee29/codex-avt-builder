@@ -182,7 +182,12 @@ describe('exec: the JSONL stream', () => {
     const result = await runExec('success')
     const events = jsonlLines(result.stdout) as { type: string }[]
 
-    expect(events[0]).toEqual({ type: 'thread.started', thread_id: 'thread_synthetic_success' })
+    // The thread id of a captured stream is replaced during sanitization; all
+    // zeroes keeps the UUID shape without pretending to be a recorded id.
+    expect(events[0]).toEqual({
+      type: 'thread.started',
+      thread_id: '00000000-0000-0000-0000-000000000000'
+    })
     expect(events.at(-1)).toMatchObject({ type: 'turn.completed' })
     expect(events.filter((event) => event.type === 'item.started').length).toBeGreaterThan(0)
   })
@@ -212,7 +217,7 @@ describe('exec: the JSONL stream', () => {
 
     await runExec('success', ['--output-last-message', target])
 
-    await expect(readFile(target, 'utf8')).resolves.toContain('outputs/001.png')
+    await expect(readFile(target, 'utf8')).resolves.toContain('DONE')
   })
 })
 

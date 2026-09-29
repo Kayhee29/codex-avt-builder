@@ -95,37 +95,53 @@ Notes for the tasks that consume this:
 
 `tests/fixtures/codex-jsonl/0.158.0/` holds the JSONL the fake replays.
 
-> **`synthetic: true`.** These three files are **hand-written**, not captured
-> from a real Codex CLI. No machine here runs a Codex new enough to produce
-> them: the installed CLI is 0.27.0, which has no `image_gen` tool and emits the
-> older `task_started` / `agent_message` / `exec_command_begin` vocabulary.
+| Fixture                        | Lines | Source                                                        |
+| ------------------------------ | ----- | ------------------------------------------------------------- |
+| `success.jsonl`                | 12    | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
+| `capability-unavailable.jsonl` | 8     | hand-written, not yet captured                                |
+| `error.jsonl`                  | 6     | hand-written, not yet captured                                |
 
-They follow the event schema spec section 5.5 fixes for `CODEX_MIN_VERSION` and
-above — `thread.started`, `turn.started`, `item.started`, `item.completed`,
-`turn.completed`, `error` — with `item.type` drawn from the list that section
-gives: `agent_message`, `reasoning`, `command_execution`, `file_change`,
-`mcp_tool_call`, `web_search`, `todo_list` and other tool calls. `success.jsonl`
-also carries one `item.updated`, which that list does not mention, so the
-normalizer's "ignore what you do not know, but still log it" path is exercised
-by realistic input rather than only by invented input.
+### `success.jsonl` is a recording
 
-Because the shapes are inferred from prose rather than observed, the normalizer
-of plan Task 3.4 reads an item's type from `item.type` **or** `item.item_type`
-and never fails on a field it does not find. Spec section 5.5 says the stream
-carries no version marker and that the schema changed shape in 0.144 without
-changing event names, so tolerance here is the design, not a workaround.
+Captured with `scripts/capture-codex-fixture.md` and sanitized with
+`scripts/sanitize-codex-fixture.mjs`: the user name, the thread id and the
+other UUIDs are placeholders, and one 26 KB `aggregated_output` — Codex echoes
+whole files it reads — is cut down to a marker. Event order, event names, item
+ids, item types and usage counts are exactly as recorded.
 
-**Plan Task 6.3 replaces these files** with output captured from a real 0.158.0
-CLI, after the manual upgrade. When it does: if the normalizer fails against the
-captured stream, fix the normalizer, not the fixture, and update this section
-with the Codex version and the capture date.
+What the recording settled, against what the hand-written version assumed:
 
-| Fixture                        | Lines | What it shows                                                                                      |
-| ------------------------------ | ----- | -------------------------------------------------------------------------------------------------- |
-| `success.jsonl`                | 15    | reasoning, a shell command, an `image_gen` tool call, a copy, a file change, a final agent message |
-| `capability-unavailable.jsonl` | 8     | Codex finding no `image_gen` and reporting it instead of generating                                |
-| `error.jsonl`                  | 6     | a failed copy and an `error` event whose message carries an absolute path and a fake bearer token  |
+- **No `image_gen` tool call exists.** The image came from the `imagegen`
+  skill, which writes to `generated_images/` under `CODEX_HOME` and announces
+  nothing in the stream; the only trace is the shell command that copies the
+  file out. So `ACTIVITY.imageGen` never fires on a real run. The detection is
+  still covered, by constructed items in the normalizer's unit tests.
+- **No `reasoning` and no `file_change` items**, although `turn.completed`
+  reports `reasoning_output_tokens`.
+- **`agent_message` only ever arrives on `item.completed`**, never with a
+  matching `item.started`.
+- **Every command is `"C:\…\powershell.exe" -Command …`**, an absolute path in
+  quotes. That is what made `commandProgram` drop the program name until it
+  learned to strip the quotes.
+- **No `item.updated`**, so the "ignore what you do not know, but still log it"
+  path is exercised by a constructed line instead.
 
-The token in `error.jsonl` and in the `capability-unavailable` result message is
-`sk-NOT-A-REAL-KEY-000000`. It exists so the sanitizer of plan Task 3.4 has
+### The other two are still invented
+
+`capability-unavailable.jsonl` and `error.jsonl` follow the event schema spec
+section 5.5 fixes — `thread.started`, `turn.started`, `item.started`,
+`item.completed`, `turn.completed`, `error` — with `item.type` from the list
+that section gives. Their shapes are inferred from prose, which is why the
+normalizer of plan Task 3.4 reads an item's type from `item.type` **or**
+`item.item_type` and never fails on a field it does not find.
+
+`capability-unavailable` could not be captured by disabling the feature.
+`--disable image_generation` does remove the tool, but Codex then reaches for
+the bundled Codex app tools and generates the image through a third party
+instead of reporting the capability missing — which is what
+`-c features.apps=false` in `buildCodexArgs` now prevents. A capture needs a
+run that asks for the behaviour `instructions/run-job.md` section 4 requires.
+
+The token in `error.jsonl` and in the `capability-unavailable` result message
+is `sk-NOT-A-REAL-KEY-000000`. It exists so the sanitizer of plan Task 3.4 has
 something to redact; it is not a credential.

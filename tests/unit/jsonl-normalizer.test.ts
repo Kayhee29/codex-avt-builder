@@ -37,17 +37,29 @@ function line(value: unknown): string {
 }
 
 describe('the success fixture', () => {
-  it('produces one activity per item that starts, plus the final message', async () => {
+  it('produces one activity per item that starts, plus every agent message', async () => {
     const events = normalizeCodexJsonl(await fixture('success.jsonl'))
 
     expect(activities(events)).toEqual([
-      ACTIVITY.reasoning,
-      `${ACTIVITY.command} ls`,
-      ACTIVITY.imageGen,
-      `${ACTIVITY.command} copy`,
-      ACTIVITY.fileChange,
-      'Đã sinh 1 ảnh bằng image_gen, copy vào outputs/001.png và ghi codex-result.json.'
+      expect.stringContaining('image-generation skill'),
+      `${ACTIVITY.command} powershell.exe`,
+      expect.stringContaining('resizing the generated PNG'),
+      `${ACTIVITY.command} powershell.exe`,
+      `${ACTIVITY.command} powershell.exe`,
+      'DONE'
     ])
+  })
+
+  it('carries no image_gen tool call, because a real 0.158.0 run emits none', async () => {
+    const events = normalizeCodexJsonl(await fixture('success.jsonl'))
+
+    // The image in this recording was produced by the `imagegen` skill, which
+    // writes straight to generated_images/ under CODEX_HOME and announces
+    // nothing. The only trace in the stream is the shell command that copies
+    // the file out afterwards. `ACTIVITY.imageGen` and the detection behind it
+    // are still covered, by the constructed items under "image_gen detection";
+    // this pins down that a real success stream does not reach them.
+    expect(activities(events)).not.toContain(ACTIVITY.imageGen)
   })
 
   it('never reports the same item twice', async () => {
@@ -57,9 +69,10 @@ describe('the success fixture', () => {
       (event) => event.type === 'item.completed' && event.kind === 'activity'
     )
 
-    expect(started).toHaveLength(5)
-    // Only the agent message speaks on completion.
-    expect(completedActivities).toHaveLength(1)
+    expect(started).toHaveLength(3)
+    // Only agent messages speak on completion; the three commands stay silent
+    // there, having already spoken when they started.
+    expect(completedActivities).toHaveLength(3)
   })
 
   it('ignores thread.started, turn.started and turn.completed without calling them unknown', async () => {
@@ -73,20 +86,31 @@ describe('the success fixture', () => {
     }
   })
 
-  it('ignores item.updated, which spec section 5.5 does not list', async () => {
-    const events = normalizeCodexJsonl(await fixture('success.jsonl'))
-    const updated = events.filter((event) => event.type === 'item.updated')
-
-    expect(updated).toHaveLength(1)
-    expect(updated[0]?.kind).toBe('ignored')
-  })
-
   it('keeps every line for events.jsonl, activity or not', async () => {
     const raw = await fixture('success.jsonl')
     const events = normalizeCodexJsonl(raw)
 
-    expect(events).toHaveLength(15)
+    expect(events).toHaveLength(12)
     expect(events.map(eventLogLine).join('\n')).toBe(raw.trimEnd())
+  })
+})
+
+describe('item.updated, which spec section 5.5 does not list', () => {
+  // The 0.158.0 captures contain no `item.updated`, so this is built by hand
+  // rather than read from a fixture. It stays because spec section 5.5 warns
+  // the stream carries no version marker and changed shape at 0.144 without
+  // renaming events: an event this version has never seen has to be logged and
+  // ignored, not treated as unknown and not turned into activity.
+  it('is ignored without being called unknown', () => {
+    const event = normalizeCodexLine(
+      line({
+        type: 'item.updated',
+        item: { id: 'x', type: 'command_execution', command: 'copy a.png outputs/b.png' }
+      })
+    )
+
+    expect(event?.kind).toBe('ignored')
+    expect(event?.kind === 'ignored' && event.unknown).toBe(false)
   })
 })
 
@@ -267,6 +291,28 @@ describe('command activity', () => {
     expect(activity).toBe(`${ACTIVITY.command} secret-tool.exe`)
     expect(activity).not.toContain('someone')
     expect(activity).not.toContain('sk-')
+  })
+
+  it('names the program when the executable is a quoted path, as real Codex writes it', () => {
+    // Every shell command in the 0.158.0 capture looks like this: Codex quotes
+    // the absolute path to powershell.exe. Without stripping the quotes the
+    // basename is `powershell.exe"`, which the safe-token pattern rejects, and
+    // the whole job shows a bare "Đang chạy lệnh" for every command it runs.
+    const event = normalizeCodexLine(
+      line({
+        type: 'item.started',
+        item: {
+          id: 'x',
+          type: 'command_execution',
+          command:
+            '"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content x"'
+        }
+      })
+    )
+    const activity = event?.kind === 'activity' ? event.activity : ''
+
+    expect(activity).toBe(`${ACTIVITY.command} powershell.exe`)
+    expect(activity).not.toContain('C:')
   })
 
   it('falls back to the bare label when the command is unusable', () => {
