@@ -10,6 +10,12 @@
  * `src/shared/ipc-contract.ts` without a Vietnamese sentence here fails
  * `pnpm typecheck` rather than reaching a user as raw English.
  */
+import type {
+  AspectRatioOptionId,
+  BackgroundOptionId,
+  ExpressionOptionId,
+  PoseOptionId
+} from '@shared/direction-options'
 import type { IpcErrorCode } from '@shared/ipc-contract'
 import type { PresetField } from '@shared/preset-merge'
 import type { RunState } from '@shared/progress'
@@ -116,6 +122,96 @@ export const PRESET_FIELD_TEXT: Record<PresetField, string> = {
   'source.preset': 'Preset đang dùng'
 }
 
+/**
+ * One Vietnamese label per predefined choice in `src/shared/direction-options.ts`.
+ *
+ * Each is typed `Record<…OptionId, string>`, so an option added there without a
+ * label here fails `pnpm typecheck` instead of showing its id in a dropdown.
+ * The English the option carries is what reaches `prompt.md`; this is only what
+ * the user reads.
+ */
+export const POSE_OPTION_TEXT: Record<PoseOptionId, string> = {
+  'standing-relaxed': 'Đứng thả lỏng',
+  'standing-front': 'Đứng thẳng, nhìn thẳng',
+  heroic: 'Dáng anh hùng',
+  'arms-crossed': 'Khoanh tay',
+  'hands-on-hips': 'Chống nạnh',
+  'hands-in-pockets': 'Tay đút túi',
+  walking: 'Đang bước tới',
+  running: 'Chạy',
+  jumping: 'Nhảy lên',
+  'sitting-chair': 'Ngồi ghế',
+  'sitting-cross-legged': 'Ngồi xếp bằng',
+  crouching: 'Ngồi xổm',
+  kneeling: 'Quỳ một gối',
+  leaning: 'Tựa tường',
+  'lying-down': 'Nằm chống khuỷu tay',
+  'looking-over-shoulder': 'Ngoái nhìn qua vai',
+  'back-turned': 'Quay lưng',
+  waving: 'Vẫy tay',
+  pointing: 'Chỉ tay về phía trước',
+  reaching: 'Vươn tay ra',
+  'combat-stance': 'Thủ thế chiến đấu',
+  meditating: 'Ngồi thiền',
+  'portrait-bust': 'Chân dung bán thân',
+  'three-quarter': 'Góc ba phần tư, nửa người',
+  profile: 'Nhìn nghiêng'
+}
+
+export const EXPRESSION_OPTION_TEXT: Record<ExpressionOptionId, string> = {
+  neutral: 'Bình thản',
+  'slight-smile': 'Cười mỉm',
+  'warm-smile': 'Cười ấm áp',
+  grin: 'Cười toe',
+  laughing: 'Cười lớn',
+  serious: 'Nghiêm túc',
+  stern: 'Nghiêm khắc',
+  determined: 'Quyết tâm',
+  confident: 'Tự tin',
+  smug: 'Đắc ý',
+  angry: 'Giận',
+  furious: 'Giận dữ, quát',
+  sad: 'Buồn',
+  crying: 'Khóc',
+  worried: 'Lo lắng',
+  fearful: 'Sợ hãi',
+  surprised: 'Ngạc nhiên',
+  shocked: 'Sững sờ',
+  curious: 'Tò mò',
+  thoughtful: 'Trầm ngâm',
+  bored: 'Chán',
+  sleepy: 'Buồn ngủ',
+  shy: 'Ngại ngùng',
+  embarrassed: 'Xấu hổ',
+  playful: 'Tinh nghịch',
+  calm: 'Điềm tĩnh',
+  proud: 'Kiêu hãnh',
+  disgusted: 'Ghê tởm'
+}
+
+export const ASPECT_RATIO_OPTION_TEXT: Record<AspectRatioOptionId, string> = {
+  square: 'Vuông 1:1',
+  'portrait-4-5': 'Dọc 4:5',
+  'portrait-3-4': 'Dọc 3:4',
+  'portrait-2-3': 'Dọc 2:3',
+  'portrait-9-16': 'Dọc 9:16',
+  'landscape-4-3': 'Ngang 4:3',
+  'landscape-3-2': 'Ngang 3:2',
+  'landscape-16-9': 'Ngang 16:9'
+}
+
+export const BACKGROUND_OPTION_TEXT: Record<BackgroundOptionId, string> = {
+  transparent: 'Trong suốt',
+  white: 'Trắng',
+  black: 'Đen',
+  'flat-colour': 'Một màu phẳng',
+  'soft-gradient': 'Gradient nhẹ',
+  studio: 'Phông studio',
+  'simple-environment': 'Bối cảnh đơn giản',
+  blurred: 'Xoá phông',
+  'match-style': 'Theo ảnh phong cách'
+}
+
 /** Everything else, grouped by the part of the UI that shows it. */
 export const vi = {
   app: {
@@ -150,7 +246,13 @@ export const vi = {
     aspectRatio: 'Tỉ lệ khung hình',
     background: 'Nền',
     format: 'Định dạng file',
-    count: 'Số lượng ảnh'
+    count: 'Số lượng ảnh',
+    unspecified: 'Không chỉ định',
+    custom: 'Khác…',
+    customPose: 'Pose tự nhập',
+    customExpression: 'Biểu cảm tự nhập',
+    required: 'bắt buộc',
+    requiredHint: 'Cần điền để tạo được ảnh.'
   },
 
   reference: {
@@ -213,6 +315,7 @@ export const vi = {
     button: 'Tạo ảnh',
     starting: 'Đang gửi job…',
     blockedInvalid: 'Còn thiếu dữ liệu bắt buộc nên chưa tạo ảnh được.',
+    blockedMissing: 'Chưa tạo ảnh được, còn thiếu:',
     blockedRunning: 'Đang có một job chạy.',
     failed: 'Không bắt đầu được job.',
     checksumFailed: 'Chưa tính được checksum của prompt nên chưa gửi job.',

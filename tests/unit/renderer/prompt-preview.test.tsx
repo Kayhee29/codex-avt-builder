@@ -13,10 +13,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
+import { POSE_OPTIONS } from '@shared/direction-options'
 import { IPC_CHANNEL_NAMES } from '@shared/ipc-contract'
 import { sha256Hex } from '@shared/prompt-builder'
 
-import { CharacterForm } from '../../../src/renderer/components/CharacterForm.tsx'
+import {
+  CharacterForm,
+  CUSTOM_OPTION_VALUE
+} from '../../../src/renderer/components/CharacterForm.tsx'
 import { PromptPreview } from '../../../src/renderer/components/PromptPreview.tsx'
 import { AUTOSAVE_DEBOUNCE_MS, useBuilderStore } from '../../../src/renderer/store/builder.ts'
 
@@ -56,12 +60,23 @@ afterEach(() => {
 })
 
 describe('the preview follows the form', () => {
-  it('rebuilds the prompt as the pose is typed', () => {
+  it('rebuilds the prompt as a pose is chosen', () => {
     renderBuilder()
 
-    expect(promptText()).not.toContain('đứng thẳng, tay chắp sau lưng')
+    const chosen = POSE_OPTIONS[0]?.value ?? ''
 
-    fireEvent.change(screen.getByLabelText('Pose'), {
+    expect(promptText()).not.toContain(chosen)
+
+    fireEvent.change(screen.getByLabelText('Pose'), { target: { value: chosen } })
+
+    expect(promptText()).toContain(`- Pose: ${chosen}`)
+  })
+
+  it('carries a pose typed into Khác…, not only one off the list', () => {
+    renderBuilder()
+
+    fireEvent.change(screen.getByLabelText('Pose'), { target: { value: CUSTOM_OPTION_VALUE } })
+    fireEvent.change(screen.getByLabelText('Pose tự nhập'), {
       target: { value: 'đứng thẳng, tay chắp sau lưng' }
     })
 
@@ -90,12 +105,12 @@ describe('the preview follows the form', () => {
     fireEvent.change(screen.getByLabelText('Số lượng ảnh'), { target: { value: '3' } })
     fireEvent.change(screen.getByLabelText('Định dạng file'), { target: { value: 'webp' } })
     fireEvent.change(screen.getByLabelText('Tỉ lệ khung hình'), { target: { value: '3:2' } })
-    fireEvent.change(screen.getByLabelText('Nền'), { target: { value: 'xám trơn' } })
+    fireEvent.change(screen.getByLabelText('Nền'), { target: { value: 'solid white' } })
 
     expect(promptText()).toContain('Generate 3 images')
     expect(promptText()).toContain('- File format: webp')
     expect(promptText()).toContain('- Aspect ratio: 3:2')
-    expect(promptText()).toContain('- Background: xám trơn')
+    expect(promptText()).toContain('- Background: solid white')
   })
 
   it('splits the negative constraints textarea one per line and drops blanks', () => {

@@ -23,6 +23,7 @@ import { sha256Hex } from '@shared/prompt-builder'
 import { ipcErrorText, vi } from '../i18n/vi.ts'
 import {
   selectCanGenerate,
+  selectMissingRequiredFields,
   selectMissingRoles,
   toBuilderStateInput,
   useBuilderStore
@@ -113,8 +114,19 @@ export function GenerateBar(): JSX.Element {
       return vi.generate.blockedRunning
     }
 
-    return selectMissingRoles(useBuilderStore.getState()).length > 0
-      ? vi.reference.missingBlocksGenerate
+    const store = useBuilderStore.getState()
+
+    if (selectMissingRoles(store).length > 0) {
+      return vi.reference.missingBlocksGenerate
+    }
+
+    const missing = selectMissingRequiredFields(store)
+
+    // Naming the empty fields beats "something required is missing" on a form
+    // this long. `blockedInvalid` still covers the rest, which the dropdowns
+    // make unreachable from the UI but the store API can still produce.
+    return missing.length > 0
+      ? `${vi.generate.blockedMissing} ${missing.map((field) => vi.form[field]).join(', ')}.`
       : vi.generate.blockedInvalid
   }
 }

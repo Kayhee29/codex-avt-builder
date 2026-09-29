@@ -54,6 +54,16 @@ export type BuilderStatus = 'clean' | 'dirty' | 'saving' | 'ready' | 'invalid'
 /** The character-direction fields of spec section 4.1 that hold free text. */
 export type SubjectTextField = 'name' | 'description' | 'pose' | 'expression' | 'notes'
 
+/**
+ * The subject fields `SubjectSchema` declares `min(1)`, in the order the form
+ * shows them. Naming them once keeps the required markers in the form, the
+ * hint under the Generate button and {@link selectMissingRequiredFields} from
+ * disagreeing about what "required" means.
+ */
+export const REQUIRED_SUBJECT_FIELDS = ['name', 'description'] as const
+
+export type RequiredSubjectField = (typeof REQUIRED_SUBJECT_FIELDS)[number]
+
 export interface BuilderStore {
   /** The state a job would be generated from. */
   readonly state: BuilderState
@@ -561,6 +571,22 @@ export function selectMissingRoles(store: BuilderStore): ReferenceRole[] {
  */
 export function selectCanGenerate(store: BuilderStore): boolean {
   return store.valid && selectMissingRoles(store).length === 0
+}
+
+/**
+ * The subject fields `SubjectSchema` requires that are still empty.
+ *
+ * These two are the only fields a user can leave in a state that blocks
+ * Generate: every other control in the form is a dropdown over a closed list
+ * with a valid default, so it cannot hold a value the schema rejects. The form
+ * marks them required and the generate bar names them, both from this list, so
+ * the two cannot drift apart.
+ *
+ * Like {@link selectMissingRoles} this builds a fresh array, so it is for
+ * `getState()` and not for `useBuilderStore`.
+ */
+export function selectMissingRequiredFields(store: BuilderStore): RequiredSubjectField[] {
+  return REQUIRED_SUBJECT_FIELDS.filter((field) => (store.state.subject[field] ?? '').trim() === '')
 }
 
 /**

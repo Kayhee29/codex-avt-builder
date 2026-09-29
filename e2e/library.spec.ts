@@ -15,13 +15,22 @@
  */
 import { expect, test, type Studio } from './fixtures.ts'
 
+// Pose and the background are dropdowns over `src/shared/direction-options.ts`,
+// so these are option values rather than typed text. Spelled out here instead of
+// imported: an end-to-end test drives the built app, and pinning the literal
+// catches a value quietly changing under the label.
+const POSE_STANDING = 'standing straight, facing the viewer'
+const POSE_CROUCHING = 'crouching low, one hand on the ground'
+const BACKGROUND_STUDIO = 'a plain studio backdrop'
+const BACKGROUND_BLACK = 'solid black'
+
 test.describe('library', () => {
   test('saves a preset, lists it and applies it back onto a changed draft', async ({ studio }) => {
     const { page, workspace } = studio
 
     await fillSubject(studio, 'Nguyễn Văn A', 'Nam, ngoài 50 tuổi')
-    await page.getByLabel('Pose', { exact: true }).fill('đứng thẳng')
-    await page.getByLabel('Nền', { exact: true }).fill('giấy ấm')
+    await page.getByLabel('Pose', { exact: true }).selectOption(POSE_STANDING)
+    await page.getByLabel('Nền', { exact: true }).selectOption(BACKGROUND_STUDIO)
     await page.getByLabel('Ràng buộc loại trừ').fill('không chữ')
 
     await workspace.offerImage('style')
@@ -46,8 +55,8 @@ test.describe('library', () => {
     await expect(presets).toContainText('Chibi master')
 
     // Now move the draft away from the preset, so applying it has work to do.
-    await page.getByLabel('Pose', { exact: true }).fill('ngồi xổm')
-    await page.getByLabel('Nền', { exact: true }).fill('nền tối')
+    await page.getByLabel('Pose', { exact: true }).selectOption(POSE_CROUCHING)
+    await page.getByLabel('Nền', { exact: true }).selectOption(BACKGROUND_BLACK)
     await page.getByLabel('Ràng buộc loại trừ').fill('')
 
     await presets.getByRole('button', { name: 'Áp dụng' }).click()
@@ -61,7 +70,7 @@ test.describe('library', () => {
     // Cancelling applies nothing (plan decision Q5).
     await dialog.getByRole('button', { name: 'Hủy', exact: true }).click()
     await expect(dialog).toBeHidden()
-    await expect(page.getByLabel('Pose', { exact: true })).toHaveValue('ngồi xổm')
+    await expect(page.getByLabel('Pose', { exact: true })).toHaveValue(POSE_CROUCHING)
 
     await presets.getByRole('button', { name: 'Áp dụng' }).click()
     await page
@@ -69,8 +78,8 @@ test.describe('library', () => {
       .getByRole('button', { name: 'Áp preset' })
       .click()
 
-    await expect(page.getByLabel('Pose', { exact: true })).toHaveValue('đứng thẳng')
-    await expect(page.getByLabel('Nền', { exact: true })).toHaveValue('giấy ấm')
+    await expect(page.getByLabel('Pose', { exact: true })).toHaveValue(POSE_STANDING)
+    await expect(page.getByLabel('Nền', { exact: true })).toHaveValue(BACKGROUND_STUDIO)
     await expect(page.getByLabel('Ràng buộc loại trừ')).toHaveValue('không chữ')
 
     await expect
@@ -82,7 +91,7 @@ test.describe('library', () => {
     const { page, workspace } = studio
 
     await fillSubject(studio, 'Nguyễn Văn A', 'Nam, ngoài 50 tuổi, tóc bạc hai bên')
-    await page.getByLabel('Pose', { exact: true }).fill('đứng thẳng')
+    await page.getByLabel('Pose', { exact: true }).selectOption(POSE_STANDING)
 
     await workspace.offerImage('identity')
     await studio.page

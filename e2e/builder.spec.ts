@@ -109,8 +109,11 @@ test.describe('builder', () => {
 
     expect((await workspace.readDraft())?.state.subject.description).toBe('')
     await expect(generateButton(studio)).toBeDisabled()
+    // The hint names the one field that is empty rather than saying something
+    // required is missing: with the rest of the form on dropdowns, these two are
+    // the only fields that can be.
     await expect(studio.region('Tạo ảnh').first()).toContainText(
-      'Còn thiếu dữ liệu bắt buộc nên chưa tạo ảnh được.'
+      'Chưa tạo ảnh được, còn thiếu: Mô tả nhân vật.'
     )
 
     await page.getByLabel('Mô tả nhân vật').fill('Nam, ngoài 50 tuổi')

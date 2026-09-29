@@ -151,9 +151,43 @@
   gap: 4px;
 }
 
+.field__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .field__label {
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+/*
+ * The two fields Generate cannot do without. Every other control in the form is
+ * a dropdown over a closed list with a valid default, so these are the only
+ * ones a user can leave empty in a way that blocks a job.
+ */
+.field__required {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  color: var(--danger);
+  background: var(--warning-surface);
+  border: 1px solid var(--warning-border);
+}
+
+/*
+ * Only ever set once the draft holds something, so an untouched form is not
+ * covered in red before the user has had a chance to type.
+ */
+.field input[aria-invalid='true'],
+.field textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+  outline: 2px solid color-mix(in srgb, var(--danger) 18%, transparent);
+  outline-offset: 0;
 }
 
 .field__hint {

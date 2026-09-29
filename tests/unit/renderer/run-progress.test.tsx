@@ -100,7 +100,26 @@ describe('the Generate button (plan decision Q24)', () => {
     expect(generateButton().disabled).toBe(false)
   })
 
-  it('is off while the state is invalid, and says why', () => {
+  it('is off while the state is invalid, and names the fields that are empty', () => {
+    render(<GenerateBar />)
+
+    // Since the output settings became dropdowns they cannot be invalid, so an
+    // invalid draft is almost always one of these two fields. Saying which one
+    // beats "something required is missing" when the form is this long.
+    expect(generateButton().disabled).toBe(true)
+    expect(
+      screen.getByText('Chưa tạo ảnh được, còn thiếu: Tên nhân vật, Mô tả nhân vật.')
+    ).toBeDefined()
+  })
+
+  it('falls back to the general reason when the gap is not a named field', () => {
+    act(() => {
+      builder().setSubjectField('name', 'Trần Văn B')
+      builder().setSubjectField('description', 'Nam, tóc ngắn')
+      // Not reachable through the dropdown any more, but the store API still
+      // allows it, and the hint must not claim a field is empty when none is.
+      builder().setOutput('count', 0)
+    })
     render(<GenerateBar />)
 
     expect(generateButton().disabled).toBe(true)
