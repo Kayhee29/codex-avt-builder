@@ -109,29 +109,23 @@ item**. The image comes from the `imagegen` skill, which writes to
 
 ### `capability-unavailable.jsonl`
 
-**Not capturable by turning the feature off.** `--disable image_generation`
-does remove the tool, and `codex --disable image_generation features list`
-confirms it. But Codex does not then report the capability missing: it reaches
-for the bundled Codex app tools and produces the image anyway, through
-`adobe.image_generate` and `photoshop-api.adobe.io`, uploading a local file
-with `adobe.asset_openai_file_upload` on the way. That is the behaviour
-`-c features.apps=false` in `buildCodexArgs` now blocks for real jobs, and it
-is why this fixture is still hand-written.
-
-A capture needs a run that reproduces what `instructions/run-job.md` section 4
-demands — report `IMAGE_CAPABILITY_UNAVAILABLE` and do not look for another way
-— which means carrying that instruction into the prompt and closing the app
-tool surface:
+**Capturing this needs more than turning the feature off.** `--disable
+image_generation` removes the tool, but Codex does not then report the
+capability missing: it reaches for the bundled Codex app tools and produces the
+image anyway, through `adobe.image_generate` and `photoshop-api.adobe.io`,
+uploading a local file with `adobe.asset_openai_file_upload` on the way. Two
+more things are needed, both of which a real job already has: the
+`-c features.apps=false` that `buildCodexArgs` passes, and a prompt carrying
+what `instructions/run-job.md` section 4 demands.
 
 ```bash
-codex exec --json --sandbox workspace-write --skip-git-repo-check \
-  --disable image_generation \
-  -c features.apps=false \
-  -i ref.png \
-  --output-last-message last-message.txt \
-  "Generate a 256x256 PNG with the image_gen tool. If image_gen is not available in this session, stop, write codex-result.json reporting IMAGE_CAPABILITY_UNAVAILABLE, and do not look for another way to produce an image." \
-  > capability-unavailable.jsonl
+codex exec --json --sandbox workspace-write --skip-git-repo-check   --disable image_generation   -c features.apps=false   -i ref.png   --output-last-message last-message.txt   "Generate a 256x256 PNG with the built-in image_gen tool and copy it to outputs/out.png. image_gen is the only image source allowed for this job. If image_gen is not available in this session, or the call is refused, stop immediately, write codex-result.json reporting IMAGE_CAPABILITY_UNAVAILABLE, and do not look for another way to produce an image."   > capability-unavailable.jsonl
 ```
+
+What the 0.158.0 capture contained: three `agent_message` items, two
+`command_execution` items, two `file_change` items, no image in `outputs/`, and
+a `codex-result.json` carrying `IMAGE_CAPABILITY_UNAVAILABLE`. Confirm all
+three of those before keeping the recording.
 
 ### `error.jsonl`
 

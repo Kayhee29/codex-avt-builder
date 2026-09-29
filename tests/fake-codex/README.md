@@ -98,18 +98,19 @@ Notes for the tasks that consume this:
 | Fixture                        | Lines | Source                                                        |
 | ------------------------------ | ----- | ------------------------------------------------------------- |
 | `success.jsonl`                | 12    | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
-| `capability-unavailable.jsonl` | 8     | hand-written, not yet captured                                |
+| `capability-unavailable.jsonl` | 10    | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
 | `error.jsonl`                  | 6     | hand-written, not yet captured                                |
 
-### `success.jsonl` is a recording
+Both recordings were made with `scripts/capture-codex-fixture.md` and
+sanitized with `scripts/sanitize-codex-fixture.mjs`: the user name, the scratch
+directory, the thread id and the other UUIDs are placeholders, and one 26 KB
+`aggregated_output` — Codex echoes whole files it reads into that field — is cut
+to a marker. Event order, event names, item ids, item types and `usage` counts
+are exactly as recorded.
 
-Captured with `scripts/capture-codex-fixture.md` and sanitized with
-`scripts/sanitize-codex-fixture.mjs`: the user name, the thread id and the
-other UUIDs are placeholders, and one 26 KB `aggregated_output` — Codex echoes
-whole files it reads — is cut down to a marker. Event order, event names, item
-ids, item types and usage counts are exactly as recorded.
+### What `success.jsonl` settled
 
-What the recording settled, against what the hand-written version assumed:
+Against what the hand-written version assumed:
 
 - **No `image_gen` tool call exists.** The image came from the `imagegen`
   skill, which writes to `generated_images/` under `CODEX_HOME` and announces
@@ -126,22 +127,37 @@ What the recording settled, against what the hand-written version assumed:
 - **No `item.updated`**, so the "ignore what you do not know, but still log it"
   path is exercised by a constructed line instead.
 
-### The other two are still invented
+### What `capability-unavailable.jsonl` took to capture
 
-`capability-unavailable.jsonl` and `error.jsonl` follow the event schema spec
-section 5.5 fixes — `thread.started`, `turn.started`, `item.started`,
-`item.completed`, `turn.completed`, `error` — with `item.type` from the list
-that section gives. Their shapes are inferred from prose, which is why the
-normalizer of plan Task 3.4 reads an item's type from `item.type` **or**
-`item.item_type` and never fails on a field it does not find.
+`--disable image_generation` alone does not produce this scenario. It removes
+the tool, but Codex answers by reaching for the bundled Codex app tools and
+generating the image anyway, through `adobe.image_generate` and
+`photoshop-api.adobe.io`, uploading a local file with
+`adobe.asset_openai_file_upload` on the way. The recording therefore needed two
+more things, both of which a real job already has:
 
-`capability-unavailable` could not be captured by disabling the feature.
-`--disable image_generation` does remove the tool, but Codex then reaches for
-the bundled Codex app tools and generates the image through a third party
-instead of reporting the capability missing — which is what
-`-c features.apps=false` in `buildCodexArgs` now prevents. A capture needs a
-run that asks for the behaviour `instructions/run-job.md` section 4 requires.
+- `-c features.apps=false`, the flag `buildCodexArgs` passes, which closes that
+  tool surface;
+- a prompt carrying what `instructions/run-job.md` section 4 demands — report
+  `IMAGE_CAPABILITY_UNAVAILABLE` and do not look for another way.
 
-The token in `error.jsonl` and in the `capability-unavailable` result message
-is `sk-NOT-A-REAL-KEY-000000`. It exists so the sanitizer of plan Task 3.4 has
-something to redact; it is not a credential.
+With both, Codex says the tool is unavailable, writes a `codex-result.json`
+carrying `IMAGE_CAPABILITY_UNAVAILABLE`, produces no image, and calls no tool
+but the shell. A test asserts the fixture contains no `mcp_tool_call`, so a
+future recapture cannot quietly reintroduce the third-party path.
+
+Note the `file_change` items here, which `success.jsonl` has none of: Codex
+writes a file it creates directly as a `file_change`, and only shells out when
+it is copying something.
+
+### `error.jsonl` is still invented
+
+It follows the event schema spec section 5.5 fixes — `thread.started`,
+`turn.started`, `item.started`, `item.completed`, `turn.completed`, `error` —
+with `item.type` from the list that section gives. Its shape is inferred from
+prose, which is part of why the normalizer of plan Task 3.4 reads an item's
+type from `item.type` **or** `item.item_type` and never fails on a field it
+does not find.
+
+The token in it, `sk-NOT-A-REAL-KEY-000000`, exists so the sanitizer of plan
+Task 3.4 has something to redact; it is not a credential.

@@ -1,12 +1,15 @@
 // Sanitizes a recorded Codex JSONL stream so it can be committed as a fixture
 // (plan Task 6.3, step 5).
 //
-// usage: node scripts/sanitize-codex-fixture.mjs <in.jsonl> <out.jsonl>
+// usage: node scripts/sanitize-codex-fixture.mjs <in.jsonl> <out.jsonl> [scratch dir]
 //
 // What it changes, and nothing else:
 //
 //   - the account's Windows user name, wherever it appears, including inside
 //     command strings;
+//   - the scratch directory the capture ran in, when one is given. Codex writes
+//     absolute paths into agent messages and command strings, and a temp path
+//     carries a session id as well as the layout of the machine;
 //   - the thread id and every other UUID, each mapped to a stable placeholder
 //     so repeated references stay linked;
 //   - `aggregated_output` longer than AGGREGATED_OUTPUT_LIMIT, replaced by a
@@ -25,13 +28,28 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const AGGREGATED_OUTPUT_LIMIT = 400
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
-const [, , source, target] = process.argv
+const [, , source, target, scratchDir] = process.argv
 
 if (source === undefined || target === undefined) {
-  throw new Error('usage: node scripts/sanitize-codex-fixture.mjs <in.jsonl> <out.jsonl>')
+  throw new Error(
+    'usage: node scripts/sanitize-codex-fixture.mjs <in.jsonl> <out.jsonl> [scratch dir]'
+  )
 }
 
 const userName = process.env.USERNAME ?? process.env.USER ?? ''
+
+// A path reaches the stream both as it was typed and with its separators
+// escaped for JSON inside a command string, so both spellings are replaced.
+const scratchSpellings =
+  scratchDir === undefined
+    ? []
+    : [
+        ...new Set([
+          scratchDir,
+          scratchDir.replaceAll('\\', '\\\\'),
+          scratchDir.replaceAll('\\', '/')
+        ])
+      ]
 const uuids = new Map()
 
 function placeholderFor(uuid) {
@@ -52,7 +70,16 @@ function placeholderFor(uuid) {
 }
 
 function scrub(text) {
-  let out = text.replace(UUID, (match) => placeholderFor(match))
+  let out = text
+
+  // The scratch directory goes first. A temp path can itself contain a UUID,
+  // and replacing UUIDs first would rewrite the middle of the path and leave
+  // nothing for a literal match to find.
+  for (const spelling of scratchSpellings) {
+    out = out.split(spelling).join('<capture-dir>')
+  }
+
+  out = out.replace(UUID, (match) => placeholderFor(match))
 
   if (userName !== '') {
     out = out.split(userName).join('example')

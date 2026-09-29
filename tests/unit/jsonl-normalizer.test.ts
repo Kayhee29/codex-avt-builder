@@ -119,10 +119,23 @@ describe('the capability-unavailable fixture', () => {
     const events = normalizeCodexJsonl(await fixture('capability-unavailable.jsonl'))
 
     expect(activities(events)).toEqual([
-      ACTIVITY.reasoning,
+      expect.stringContaining('image-generation skill'),
+      `${ACTIVITY.command} powershell.exe`,
+      expect.stringContaining('`image_gen` tool is not available'),
       ACTIVITY.fileChange,
-      expect.stringContaining('image_gen không khả dụng')
+      expect.stringContaining('Image generation was unavailable')
     ])
+  })
+
+  it('reaches no tool other than the shell, so nothing generated the image', async () => {
+    const raw = await fixture('capability-unavailable.jsonl')
+
+    // The recording this fixture comes from was made with `features.apps=false`
+    // — the flag `buildCodexArgs` passes. Without it Codex answers a missing
+    // image_gen by generating through the bundled Adobe app tools and uploading
+    // a local file on the way, which is the outcome spec section 2 forbids.
+    expect(raw).not.toContain('mcp_tool_call')
+    expect(raw).not.toContain('adobe')
   })
 })
 
