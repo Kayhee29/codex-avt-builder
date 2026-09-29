@@ -140,19 +140,29 @@ describe('the capability-unavailable fixture', () => {
 })
 
 describe('the error fixture', () => {
-  it('keeps the error message and strips the token and the path out of it', async () => {
+  it('keeps the error message the turn failed with', async () => {
     const events = normalizeCodexJsonl(await fixture('error.jsonl'))
     const error = events.find((event) => event.kind === 'error')
 
     expect(error?.kind).toBe('error')
+    expect(error?.kind === 'error' && error.message).toContain('is not supported')
+  })
 
-    const message = error?.kind === 'error' ? error.message : ''
+  it('knows turn.failed, and stays quiet about the item-level error before it', async () => {
+    const events = normalizeCodexJsonl(await fixture('error.jsonl'))
+    const failed = events.find((event) => event.type === 'turn.failed')
 
-    expect(message).toContain('Image generation failed')
-    expect(message).not.toContain('sk-NOT-A-REAL-KEY-000000')
-    expect(message).not.toContain('C:\\Users')
-    expect(message).toContain(REDACTED_MARKER)
-    expect(message).toContain(PATH_MARKER)
+    expect(failed?.kind).toBe('ignored')
+    expect(failed?.kind === 'ignored' && failed.unknown).toBe(false)
+
+    // The recording opens with an `item.completed` whose item type is `error`:
+    // a Codex-side warning about model metadata, not the job's verdict. Only
+    // `item.started` speaks, so it is logged and otherwise passed over, and the
+    // failure the UI shows is the `error` event that follows.
+    const items = events.filter((event) => event.type === 'item.completed')
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.kind).toBe('ignored')
   })
 
   it('does not turn an error event into a run state', async () => {
@@ -161,6 +171,31 @@ describe('the error fixture', () => {
     for (const event of events) {
       expect(Object.keys(event)).not.toContain('state')
     }
+  })
+})
+
+describe('an error event carrying a path and a credential', () => {
+  // No recorded stream has one — the captured failure is a plain 400 with
+  // nothing sensitive in it — so this is built by hand. It stays because spec
+  // section 7.4 requires an error that reaches the UI to be sanitized, and a
+  // recording cannot be relied on to supply the material.
+  it('strips both before the message leaves the normalizer', () => {
+    const event = normalizeCodexLine(
+      line({
+        type: 'error',
+        message:
+          'Image generation failed: the request returned 401 ' +
+          '(authorization: Bearer sk-NOT-A-REAL-KEY-000000) while writing ' +
+          'C:\\Users\\someone\\generated_images\\gen-001.png'
+      })
+    )
+    const message = event?.kind === 'error' ? event.message : ''
+
+    expect(message).toContain('Image generation failed')
+    expect(message).not.toContain('sk-NOT-A-REAL-KEY-000000')
+    expect(message).not.toContain('C:\\Users')
+    expect(message).toContain(REDACTED_MARKER)
+    expect(message).toContain(PATH_MARKER)
   })
 })
 

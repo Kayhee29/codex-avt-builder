@@ -129,10 +129,19 @@ three of those before keeping the recording.
 
 ### `error.jsonl`
 
-Needs a run that fails mid-turn rather than one that is refused up front.
-Disconnect the network and repeat the `success` command; the turn starts and
-then fails, which is the shape the verifier's error path expects. This is the
-same condition as step 4 of plan Task 6.4, so the two can share one run.
+Needs a turn that starts and then fails, not one refused up front. Asking for a
+model the account cannot use gets there, and unlike the network-disconnection
+the plan suggested it changes nothing about the machine:
+
+```bash
+codex exec --json --sandbox workspace-write --skip-git-repo-check   -c features.apps=false   -m model-that-does-not-exist-xyz   --output-last-message last-message.txt   "Print DONE"   > error.jsonl
+```
+
+Expect `thread.started`, an `item.completed` whose item type is `error`,
+`turn.started`, an `error` event and `turn.failed`, and exit 1. The failure is
+a plain HTTP 400, so nothing in it needs redacting — which is why the fake's
+`nonzero-exit` scenario appends a dirty error of its own instead of a recording
+being edited to carry a credential it never had.
 
 ## 5. Sanitize
 

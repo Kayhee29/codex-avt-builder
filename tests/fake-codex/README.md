@@ -99,7 +99,7 @@ Notes for the tasks that consume this:
 | ------------------------------ | ----- | ------------------------------------------------------------- |
 | `success.jsonl`                | 12    | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
 | `capability-unavailable.jsonl` | 10    | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
-| `error.jsonl`                  | 6     | hand-written, not yet captured                                |
+| `error.jsonl`                  | 5     | **captured** from codex-cli 0.158.0 on Windows 10, 2026-09-29 |
 
 Both recordings were made with `scripts/capture-codex-fixture.md` and
 sanitized with `scripts/sanitize-codex-fixture.mjs`: the user name, the scratch
@@ -150,14 +150,21 @@ Note the `file_change` items here, which `success.jsonl` has none of: Codex
 writes a file it creates directly as a `file_change`, and only shells out when
 it is copying something.
 
-### `error.jsonl` is still invented
+### What `error.jsonl` is, and what it is not
 
-It follows the event schema spec section 5.5 fixes — `thread.started`,
-`turn.started`, `item.started`, `item.completed`, `turn.completed`, `error` —
-with `item.type` from the list that section gives. Its shape is inferred from
-prose, which is part of why the normalizer of plan Task 3.4 reads an item's
-type from `item.type` **or** `item.item_type` and never fails on a field it
-does not find.
+A turn that starts and then fails. Recorded by asking for a model the account
+cannot use, which gets to a mid-turn failure without disconnecting the machine
+from the network as plan Task 6.3 suggested. It carries two things the earlier
+hand-written version did not have:
 
-The token in it, `sk-NOT-A-REAL-KEY-000000`, exists so the sanitizer of plan
-Task 3.4 has something to redact; it is not a credential.
+- a `turn.failed` event, which **spec section 5.5 does not list**. The list is
+  what was incomplete; `KNOWN_EVENT_TYPES` already had it.
+- an `item.completed` whose item type is `error` — a Codex-side warning about
+  model metadata, not the job's verdict. Only `item.started` speaks, so it is
+  logged and passed over, and the failure the UI shows is the `error` event
+  that follows.
+
+What it does **not** carry is anything to redact: the failure is a plain HTTP 400. So the `nonzero-exit` scenario appends a dirty error of its own through
+`extraEvents`, rather than a recording being edited to contain a credential it
+never had, and the normalizer's redaction is covered by constructed input in
+its unit tests.

@@ -47,13 +47,22 @@ const DIRTY_DETAIL =
 
 /**
  * What each `FAKE_CODEX_SCENARIO` does. `stopAfterLines` is only for `hang`,
- * which stops mid-stream and waits to be killed.
+ * which stops mid-stream and waits to be killed. `extraEvents` are streamed
+ * after the fixture, for material no recording happens to contain.
  */
 const SCENARIOS = {
   success: { fixture: 'success.jsonl', exitCode: 0 },
   'capability-unavailable': { fixture: 'capability-unavailable.jsonl', exitCode: 0 },
   'invalid-result': { fixture: 'success.jsonl', exitCode: 0 },
-  'nonzero-exit': { fixture: 'error.jsonl', exitCode: 1 },
+  // The recorded failure is a plain HTTP 400 with nothing sensitive in it, so
+  // the dirty error the sanitizers need is appended rather than pretended into
+  // the recording. `extraEvents` is streamed after the fixture, as Codex would
+  // have emitted it.
+  'nonzero-exit': {
+    fixture: 'error.jsonl',
+    exitCode: 1,
+    extraEvents: [{ type: 'error', message: `Image generation failed. ${DIRTY_DETAIL}` }]
+  },
   hang: { fixture: 'success.jsonl', exitCode: 0, stopAfterLines: 3 },
   'outputs-outside-job': { fixture: 'success.jsonl', exitCode: 0 }
 }
@@ -121,7 +130,10 @@ async function runExec() {
     envKeys: Object.keys(process.env).sort()
   })
 
-  const lines = await fixtureLines(scenario.fixture)
+  const lines = [
+    ...(await fixtureLines(scenario.fixture)),
+    ...(scenario.extraEvents ?? []).map((event) => JSON.stringify(event))
+  ]
   const limit = scenario.stopAfterLines ?? lines.length
   const delay = Number.parseInt(process.env['FAKE_CODEX_LINE_DELAY_MS'] ?? '', 10)
   const lineDelayMs = Number.isNaN(delay) ? DEFAULT_LINE_DELAY_MS : delay

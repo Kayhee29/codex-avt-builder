@@ -193,6 +193,9 @@ describe('exec: the JSONL stream', () => {
   })
 
   it('uses only the event vocabulary spec section 5.5 fixes', async () => {
+    // `turn.failed` is not in the list spec section 5.5 gives, but the captured
+    // 0.158.0 failure ends with one, so the list is what was incomplete.
+    // `KNOWN_EVENT_TYPES` in the normalizer already had it.
     const known = new Set([
       'thread.started',
       'turn.started',
@@ -200,6 +203,7 @@ describe('exec: the JSONL stream', () => {
       'item.updated',
       'item.completed',
       'turn.completed',
+      'turn.failed',
       'error'
     ])
 
@@ -295,10 +299,17 @@ describe('exec: scenarios', () => {
   it('nonzero-exit streams an error event carrying a secret and a path', async () => {
     const result = await runExec('nonzero-exit')
     const events = jsonlLines(result.stdout) as { type: string; message?: string }[]
-    const error = events.find((event) => event.type === 'error')
+    const errors = events.filter((event) => event.type === 'error')
 
-    expect(error?.message).toContain('Bearer sk-')
-    expect(error?.message).toContain('C:\\Users')
+    // Two of them: the recorded HTTP 400 the captured run really failed with,
+    // then the scenario's appended one. The recording carries nothing
+    // sensitive, so the material the sanitizers need is the second.
+    expect(errors.length).toBeGreaterThan(1)
+
+    const dirty = errors.at(-1)
+
+    expect(dirty?.message).toContain('Bearer sk-')
+    expect(dirty?.message).toContain('C:\\Users')
   })
 
   it('outputs-outside-job declares a path that escapes the job directory', async () => {

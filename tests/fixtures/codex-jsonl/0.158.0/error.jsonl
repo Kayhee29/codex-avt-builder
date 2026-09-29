@@ -1,6 +1,5 @@
-{"type":"thread.started","thread_id":"thread_synthetic_error"}
+{"type":"thread.started","thread_id":"00000000-0000-0000-0000-000000000000"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Model metadata for `model-that-does-not-exist-xyz` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."}}
 {"type":"turn.started"}
-{"type":"item.started","item":{"id":"item_0","type":"reasoning","text":"Generating the image"}}
-{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"copy generated_images/gen-001.png outputs/001.png","status":"in_progress"}}
-{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"copy generated_images/gen-001.png outputs/001.png","aggregated_output":"The system cannot find the file specified.\n","exit_code":1,"status":"completed"}}
-{"type":"error","message":"Image generation failed: the request to /v1/images returned 401 (authorization: Bearer sk-NOT-A-REAL-KEY-000000) while writing C:\\Users\\example\\AppData\\Roaming\\codex\\generated_images\\gen-001.png"}
+{"type":"error","message":"{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'model-that-does-not-exist-xyz' model is not supported when using Codex with a ChatGPT account.\"}}"}
+{"type":"turn.failed","error":{"message":"{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'model-that-does-not-exist-xyz' model is not supported when using Codex with a ChatGPT account.\"}}"}}
